@@ -16,6 +16,8 @@
         android:theme="@style/Theme.ManhwaNest">
         <activity android:name=".DetailActivity"/>
         <activity android:name=".ReaderActivity"/>
+        <activity android:name=".SearchActivity"/>
+        <activity android:name=".ProfileActivity"/>
         <activity
             android:name=".MainActivity"
             android:exported="true">

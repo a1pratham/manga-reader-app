@@ -13,6 +13,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.content.Intent;
+
 public class MainActivity extends AppCompatActivity {
 
     RecyclerView rvContinue, rvRecent, rvPopular;
@@ -31,12 +33,13 @@ public class MainActivity extends AppCompatActivity {
         rvRecent = findViewById(R.id.rvRecent);
         rvPopular = findViewById(R.id.rvPopular);
 
-        tabManga = findViewById(R.id.tabManga);
-        tabManhwa = findViewById(R.id.tabManhwa);
-
         continueAdapter = setupRecycler(rvContinue);
         recentAdapter = setupRecycler(rvRecent);
         popularAdapter = setupRecycler(rvPopular);
+
+        findViewById(R.id.searchBar).setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, SearchActivity.class));
+        });
 
         loadHomeData();
     }
@@ -46,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
                 new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         );
 
-        MangaAdapter adapter = new MangaAdapter();
+        MangaAdapter adapter = new MangaAdapter(MangaAdapter.TYPE_HOME);
         recyclerView.setAdapter(adapter);
 
         return adapter;

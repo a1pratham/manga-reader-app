@@ -21,19 +21,35 @@ public class MangaAdapter extends RecyclerView.Adapter<MangaAdapter.ViewHolder> 
     private List<Manga> mangaList = new ArrayList<>();
     private Context context;
 
-    // 🔥 CREATE VIEW
+    // 🔥 TYPES
+    public static final int TYPE_HOME = 0;
+    public static final int TYPE_GRID = 1;
+
+    private int type;
+
+    // 🔥 CONSTRUCTOR
+    public MangaAdapter(int type) {
+        this.type = type;
+    }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         context = parent.getContext();
 
-        View view = LayoutInflater.from(context)
-                .inflate(R.layout.item_manga, parent, false);
+        int layout;
+
+        if (type == TYPE_HOME) {
+            layout = R.layout.item_manga_home;
+        } else {
+            layout = R.layout.item_manga_grid;
+        }
+
+        View view = LayoutInflater.from(context).inflate(layout, parent, false);
 
         return new ViewHolder(view);
     }
 
-    // 🔥 BIND DATA
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Manga manga = mangaList.get(position);
@@ -42,7 +58,7 @@ public class MangaAdapter extends RecyclerView.Adapter<MangaAdapter.ViewHolder> 
                 .load(manga.getImageUrl())
                 .into(holder.image);
 
-        holder.title.setText(manga.getTitle()); // 🔥 THIS LINE WAS MISSING
+        holder.title.setText(manga.getTitle());
 
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, DetailActivity.class);
@@ -58,13 +74,11 @@ public class MangaAdapter extends RecyclerView.Adapter<MangaAdapter.ViewHolder> 
         return mangaList.size();
     }
 
-    // 🔥 UPDATE DATA FROM API
     public void setData(List<Manga> list) {
         this.mangaList = list;
         notifyDataSetChanged();
     }
 
-    // 🔥 VIEW HOLDER
     public static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView image;
         TextView title;
