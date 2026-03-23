@@ -87,6 +87,10 @@ public class DetailActivity extends AppCompatActivity {
 
             infoTab.setBackgroundResource(R.drawable.pink_pill);
             readTab.setBackgroundResource(R.drawable.pill_bg);
+
+            // ✅ FIX TEXT COLORS
+            infoTab.setTextColor(getResources().getColor(android.R.color.white));
+            readTab.setTextColor(getResources().getColor(android.R.color.darker_gray));
         });
 
         readTab.setOnClickListener(v -> {
@@ -95,6 +99,10 @@ public class DetailActivity extends AppCompatActivity {
 
             readTab.setBackgroundResource(R.drawable.pink_pill);
             infoTab.setBackgroundResource(R.drawable.pill_bg);
+
+            // ✅ FIX TEXT COLORS
+            readTab.setTextColor(getResources().getColor(android.R.color.white));
+            infoTab.setTextColor(getResources().getColor(android.R.color.darker_gray));
         });
 
         // 🔥 CONTINUE BUTTON
@@ -105,12 +113,22 @@ public class DetailActivity extends AppCompatActivity {
 
         // 🔥 CHAPTER GRID (DEMO)
 
+        int lastReadChapter = 5; // 🔥 demo (later from storage)
+
         for (int i = 1; i <= 20; i++) {
 
-            Button chapterBtn = new Button(this);
+            TextView chapterBtn = new TextView(this);
             chapterBtn.setText(String.valueOf(i));
+            chapterBtn.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
             chapterBtn.setTextColor(getResources().getColor(android.R.color.white));
-            chapterBtn.setBackgroundResource(R.drawable.pill_bg);
+            chapterBtn.setPadding(0, 24, 0, 24);
+
+            // 🔥 Highlight last read
+            if (lastReadChapter > 0) {
+                continueButton.setText("Continue Reading (Ch " + lastReadChapter + ")");
+            } else {
+                continueButton.setText("Start Reading");
+            }
 
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
             params.width = 0;
@@ -121,7 +139,7 @@ public class DetailActivity extends AppCompatActivity {
 
             int finalI = i;
             chapterBtn.setOnClickListener(v -> {
-                // 🔥 Open reader (later pass chapter number)
+                // later pass chapter number
                 startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
             });
 
