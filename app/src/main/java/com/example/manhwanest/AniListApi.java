@@ -54,7 +54,7 @@ public class AniListApi {
 
         RequestQueue queue = Volley.newRequestQueue(context);
 
-        String query = "{ Page(page: 1, perPage: 10) { media(type: MANGA, sort: "
+        String query = "{ Page(page: 1, perPage: 50) { media(type: MANGA, sort: "
                 + sortType +
                 ") { id title { english romaji userPreferred } coverImage { large } description } } }";
 

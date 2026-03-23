@@ -2,7 +2,12 @@ package com.example.manhwanest;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Html;
+import android.view.View;
+import android.widget.Button;
+import android.widget.GridLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -11,31 +16,130 @@ import com.bumptech.glide.Glide;
 
 public class DetailActivity extends AppCompatActivity {
 
-    ImageView image;
-    TextView title, desc;
+    ImageView bannerImage, coverImage;
+    TextView titleText, descriptionText, statusText, ratingText, genresText, chaptersText;
+
+    Button listEditorButton;
+    Button infoTab, readTab, continueButton;
+
+    LinearLayout infoLayout, readLayout;
+    GridLayout chaptersGrid;
+
+    String currentStatus = "Add to List";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
 
-        image = findViewById(R.id.detailImage);
-        title = findViewById(R.id.detailTitle);
-        desc = findViewById(R.id.detailDesc);
+        // 🔥 Bind UI
+        bannerImage = findViewById(R.id.bannerImage);
+        coverImage = findViewById(R.id.coverImage);
+        titleText = findViewById(R.id.titleText);
+        descriptionText = findViewById(R.id.descriptionText);
+        statusText = findViewById(R.id.statusText);
+        ratingText = findViewById(R.id.ratingText);
+        genresText = findViewById(R.id.genresText);
+        chaptersText = findViewById(R.id.chaptersText);
 
+        listEditorButton = findViewById(R.id.listEditorButton);
+
+        infoTab = findViewById(R.id.infoTab);
+        readTab = findViewById(R.id.readTab);
+
+        infoLayout = findViewById(R.id.infoLayout);
+        readLayout = findViewById(R.id.readLayout);
+
+        continueButton = findViewById(R.id.continueButton);
+        chaptersGrid = findViewById(R.id.chaptersGrid);
+
+        // 🔥 Default state
+        listEditorButton.setText(currentStatus);
+        infoLayout.setVisibility(View.VISIBLE);
+        readLayout.setVisibility(View.GONE);
+
+        // 🔥 Get intent data
         String imageUrl = getIntent().getStringExtra("image");
-        String titleText = getIntent().getStringExtra("title");
+        String title = getIntent().getStringExtra("title");
         String description = getIntent().getStringExtra("desc");
 
-        Glide.with(this)
-                .load(imageUrl)
-                .into(image);
+        Glide.with(this).load(imageUrl).into(coverImage);
+        Glide.with(this).load(imageUrl).into(bannerImage);
 
-        title.setText(titleText);
-        desc.setText(description);
+        titleText.setText(title);
 
-        findViewById(R.id.readButton).setOnClickListener(v -> {
+        if (description != null) {
+            descriptionText.setText(Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY));
+        } else {
+            descriptionText.setText("No description available.");
+        }
+
+        statusText.setText("Status: Unknown");
+        ratingText.setText("⭐ --");
+        genresText.setText("Genres: --");
+        chaptersText.setText("Chapters: --");
+
+        // 🔥 TAB SWITCHING
+
+        infoTab.setOnClickListener(v -> {
+            infoLayout.setVisibility(View.VISIBLE);
+            readLayout.setVisibility(View.GONE);
+
+            infoTab.setBackgroundResource(R.drawable.pink_pill);
+            readTab.setBackgroundResource(R.drawable.pill_bg);
+        });
+
+        readTab.setOnClickListener(v -> {
+            infoLayout.setVisibility(View.GONE);
+            readLayout.setVisibility(View.VISIBLE);
+
+            readTab.setBackgroundResource(R.drawable.pink_pill);
+            infoTab.setBackgroundResource(R.drawable.pill_bg);
+        });
+
+        // 🔥 CONTINUE BUTTON
+
+        continueButton.setOnClickListener(v -> {
             startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
+        });
+
+        // 🔥 CHAPTER GRID (DEMO)
+
+        for (int i = 1; i <= 20; i++) {
+
+            Button chapterBtn = new Button(this);
+            chapterBtn.setText(String.valueOf(i));
+            chapterBtn.setTextColor(getResources().getColor(android.R.color.white));
+            chapterBtn.setBackgroundResource(R.drawable.pill_bg);
+
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            params.setMargins(8, 8, 8, 8);
+
+            chapterBtn.setLayoutParams(params);
+
+            int finalI = i;
+            chapterBtn.setOnClickListener(v -> {
+                // 🔥 Open reader (later pass chapter number)
+                startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
+            });
+
+            chaptersGrid.addView(chapterBtn);
+        }
+
+        // 🔥 LIST EDITOR
+
+        listEditorButton.setOnClickListener(v -> {
+
+            ListEditorBottomSheet sheet = new ListEditorBottomSheet();
+
+            sheet.setOnSaveListener((status, progress, score) -> {
+                currentStatus = status;
+                listEditorButton.setText(status);
+            });
+
+            sheet.show(getSupportFragmentManager(), "ListEditor");
         });
     }
 }
