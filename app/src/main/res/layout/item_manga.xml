@@ -23,14 +23,13 @@
             android:id="@+id/mangaTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Solo Leveling"
             android:textColor="#FFFFFF"
             android:textSize="13sp"
             android:textStyle="bold"
             android:maxLines="2"
             android:ellipsize="end"
-            android:padding="5dp"
-            android:background="#1A1A1A"/>
+            android:padding="6dp"
+            android:background="#CC1A1A1A"/>
 
     </LinearLayout>
 

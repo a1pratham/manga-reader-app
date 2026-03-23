@@ -1,11 +1,13 @@
 package com.example.manhwanest;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.content.Intent;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.bumptech.glide.Glide;
 
 public class DetailActivity extends AppCompatActivity {
 
@@ -21,19 +23,19 @@ public class DetailActivity extends AppCompatActivity {
         title = findViewById(R.id.detailTitle);
         desc = findViewById(R.id.detailDesc);
 
-        // Get data from intent
-        int img = getIntent().getIntExtra("image", 0);
-        String txt = getIntent().getStringExtra("title");
+        String imageUrl = getIntent().getStringExtra("image");
+        String titleText = getIntent().getStringExtra("title");
+        String description = getIntent().getStringExtra("desc");
 
-        image.setImageResource(img);
-        title.setText(txt);
+        Glide.with(this)
+                .load(imageUrl)
+                .into(image);
 
-        desc.setText("This is a demo description for " + txt + ". You can replace this with real data later.");
+        title.setText(titleText);
+        desc.setText(description);
 
         findViewById(R.id.readButton).setOnClickListener(v -> {
             startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
         });
     }
-
-
 }
