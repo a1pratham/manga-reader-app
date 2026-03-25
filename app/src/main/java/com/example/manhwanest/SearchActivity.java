@@ -110,15 +110,18 @@ public class SearchActivity extends AppCompatActivity {
             for (int i = 0; i < mediaArray.length(); i++) {
                 JSONObject item = mediaArray.getJSONObject(i);
 
+                // ✅ GET ID (IMPORTANT)
+                int id = item.getInt("id");
+
                 JSONObject titleObj = item.getJSONObject("title");
 
                 String title = titleObj.optString("english");
 
-                if (title.equals("null") || title.isEmpty()) {
+                if (title == null || title.equals("null") || title.isEmpty()) {
                     title = titleObj.optString("userPreferred");
                 }
 
-                if (title.equals("null") || title.isEmpty()) {
+                if (title == null || title.equals("null") || title.isEmpty()) {
                     title = titleObj.optString("romaji");
                 }
 
@@ -128,7 +131,8 @@ public class SearchActivity extends AppCompatActivity {
 
                 String desc = item.optString("description", "No description");
 
-                list.add(new Manga(title, image, desc));
+                // ✅ FIXED
+                list.add(new Manga(id, title, image, desc));
             }
 
         } catch (Exception e) {

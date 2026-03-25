@@ -1,5 +1,6 @@
 package com.example.manhwanest;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.Html;
@@ -9,10 +10,18 @@ import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class DetailActivity extends AppCompatActivity {
 
@@ -21,6 +30,10 @@ public class DetailActivity extends AppCompatActivity {
 
     Button listEditorButton;
     Button infoTab, readTab, continueButton;
+
+    // ✅ Source selector
+    Button sourceSelector;
+    String selectedSource = "MangaDex";
 
     LinearLayout infoLayout, readLayout;
     GridLayout chaptersGrid;
@@ -53,31 +66,28 @@ public class DetailActivity extends AppCompatActivity {
         continueButton = findViewById(R.id.continueButton);
         chaptersGrid = findViewById(R.id.chaptersGrid);
 
-        // 🔥 Default state
+        sourceSelector = findViewById(R.id.sourceSelector);
+
+        // 🔥 Default UI
         listEditorButton.setText(currentStatus);
         infoLayout.setVisibility(View.VISIBLE);
         readLayout.setVisibility(View.GONE);
 
-        // 🔥 Get intent data
-        String imageUrl = getIntent().getStringExtra("image");
-        String title = getIntent().getStringExtra("title");
-        String description = getIntent().getStringExtra("desc");
+        // 🔥 Get ID
+        int animeId = getIntent().getIntExtra("id", -1);
 
-        Glide.with(this).load(imageUrl).into(coverImage);
-        Glide.with(this).load(imageUrl).into(bannerImage);
+// 🔍 DEBUG LOG
+        android.util.Log.d("DEBUG_ID", "Received ID: " + animeId);
 
-        titleText.setText(title);
-
-        if (description != null) {
-            descriptionText.setText(Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY));
+        if (animeId != -1) {
+            fetchAnimeDetails(animeId);
         } else {
-            descriptionText.setText("No description available.");
+            Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
         }
 
-        statusText.setText("Status: Unknown");
-        ratingText.setText("⭐ --");
-        genresText.setText("Genres: --");
-        chaptersText.setText("Chapters: --");
+        // 🔥 Source selector
+        sourceSelector.setText("Source: " + selectedSource + " ▼");
+        sourceSelector.setOnClickListener(v -> showSourceDialog());
 
         // 🔥 TAB SWITCHING
 
@@ -88,7 +98,6 @@ public class DetailActivity extends AppCompatActivity {
             infoTab.setBackgroundResource(R.drawable.pink_pill);
             readTab.setBackgroundResource(R.drawable.pill_bg);
 
-            // ✅ FIX TEXT COLORS
             infoTab.setTextColor(getResources().getColor(android.R.color.white));
             readTab.setTextColor(getResources().getColor(android.R.color.darker_gray));
         });
@@ -100,20 +109,153 @@ public class DetailActivity extends AppCompatActivity {
             readTab.setBackgroundResource(R.drawable.pink_pill);
             infoTab.setBackgroundResource(R.drawable.pill_bg);
 
-            // ✅ FIX TEXT COLORS
             readTab.setTextColor(getResources().getColor(android.R.color.white));
             infoTab.setTextColor(getResources().getColor(android.R.color.darker_gray));
         });
 
-        // 🔥 CONTINUE BUTTON
-
+        // 🔥 Continue button
         continueButton.setOnClickListener(v -> {
             startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
         });
 
-        // 🔥 CHAPTER GRID (DEMO)
+        // 🔥 DEMO CHAPTER GRID (will replace later)
+        loadDummyChapters();
 
-        int lastReadChapter = 5; // 🔥 demo (later from storage)
+        // 🔥 LIST EDITOR
+        listEditorButton.setOnClickListener(v -> {
+
+            ListEditorBottomSheet sheet = new ListEditorBottomSheet();
+
+            sheet.setOnSaveListener((status, progress, score) -> {
+                currentStatus = status;
+                listEditorButton.setText(status);
+            });
+
+            sheet.show(getSupportFragmentManager(), "ListEditor");
+        });
+    }
+
+    // 🔥 ANILIST API
+    private void fetchAnimeDetails(int id) {
+
+        String url = "https://graphql.anilist.co";
+
+        String query = "{ Media(id: " + id + ", type: MANGA) { " +
+                "id " +
+                "title { english userPreferred } " +
+                "description " +
+                "bannerImage " +
+                "coverImage { large } " +
+                "genres " +
+                "averageScore " +
+                "status " +
+                "chapters " +
+                "} }";
+
+        JSONObject jsonBody = new JSONObject();
+        try {
+            jsonBody.put("query", query);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        RequestQueue queue = Volley.newRequestQueue(this);
+
+        JsonObjectRequest request = new JsonObjectRequest(
+                Request.Method.POST,
+                url,
+                jsonBody,
+                response -> {
+                    try {
+                        JSONObject media = response.getJSONObject("data").getJSONObject("Media");
+
+                        // ✅ TITLE (ENGLISH FIRST)
+                        JSONObject titleObj = media.getJSONObject("title");
+                        String title = titleObj.optString("english");
+
+                        if (title == null || title.equals("null") || title.isEmpty()) {
+                            title = titleObj.optString("userPreferred");
+                        }
+
+                        titleText.setText(title);
+
+                        // ✅ IMAGES
+                        String banner = media.optString("bannerImage");
+                        String cover = media.getJSONObject("coverImage").optString("large");
+
+                        Glide.with(this).load(cover).into(coverImage);
+                        Glide.with(this).load(banner).into(bannerImage);
+
+                        // ✅ DESCRIPTION CLEAN
+                        String description = media.optString("description");
+
+                        if (description != null) {
+                            descriptionText.setText(
+                                    Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY)
+                            );
+                        } else {
+                            descriptionText.setText("No description available.");
+                        }
+
+                        // ✅ GENRES
+                        JSONArray genresArray = media.getJSONArray("genres");
+                        StringBuilder genres = new StringBuilder();
+
+                        for (int i = 0; i < genresArray.length(); i++) {
+                            genres.append(genresArray.getString(i));
+                            if (i != genresArray.length() - 1) {
+                                genres.append(", ");
+                            }
+                        }
+
+                        genresText.setText("Genres: " + genres.toString());
+
+                        // ✅ SCORE
+                        int score = media.optInt("averageScore", 0);
+                        ratingText.setText("⭐ " + score);
+
+                        // ✅ STATUS
+                        String status = media.optString("status", "Unknown");
+                        statusText.setText("Status: " + status);
+
+                        // ✅ CHAPTERS
+                        int chapters = media.optInt("chapters", 0);
+                        chaptersText.setText("Chapters: " + (chapters == 0 ? "?" : chapters));
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                },
+                error -> {
+                    error.printStackTrace();
+                    Toast.makeText(this, "Failed to load details", Toast.LENGTH_SHORT).show();
+                }
+        );
+
+        queue.add(request);
+    }
+
+    // 🔥 SOURCE DIALOG
+    private void showSourceDialog() {
+        String[] sources = {"MangaDex", "MangaBuddy", "MangaPill", "MGecko"};
+
+        new AlertDialog.Builder(this)
+                .setTitle("Select Source")
+                .setItems(sources, (dialog, which) -> {
+                    selectedSource = sources[which];
+                    sourceSelector.setText("Source: " + selectedSource + " ▼");
+
+                    Toast.makeText(this, "Selected: " + selectedSource, Toast.LENGTH_SHORT).show();
+
+                    // 🔥 Later: reload chapters based on source
+                })
+                .show();
+    }
+
+    // 🔥 TEMP CHAPTER GRID
+    private void loadDummyChapters() {
+
+        int lastReadChapter = 5;
 
         for (int i = 1; i <= 20; i++) {
 
@@ -123,7 +265,6 @@ public class DetailActivity extends AppCompatActivity {
             chapterBtn.setTextColor(getResources().getColor(android.R.color.white));
             chapterBtn.setPadding(0, 24, 0, 24);
 
-            // 🔥 Highlight last read
             if (lastReadChapter > 0) {
                 continueButton.setText("Continue Reading (Ch " + lastReadChapter + ")");
             } else {
@@ -137,27 +278,11 @@ public class DetailActivity extends AppCompatActivity {
 
             chapterBtn.setLayoutParams(params);
 
-            int finalI = i;
             chapterBtn.setOnClickListener(v -> {
-                // later pass chapter number
                 startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
             });
 
             chaptersGrid.addView(chapterBtn);
         }
-
-        // 🔥 LIST EDITOR
-
-        listEditorButton.setOnClickListener(v -> {
-
-            ListEditorBottomSheet sheet = new ListEditorBottomSheet();
-
-            sheet.setOnSaveListener((status, progress, score) -> {
-                currentStatus = status;
-                listEditorButton.setText(status);
-            });
-
-            sheet.show(getSupportFragmentManager(), "ListEditor");
-        });
     }
 }

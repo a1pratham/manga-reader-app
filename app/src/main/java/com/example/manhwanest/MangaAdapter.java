@@ -62,9 +62,10 @@ public class MangaAdapter extends RecyclerView.Adapter<MangaAdapter.ViewHolder> 
 
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, DetailActivity.class);
-            intent.putExtra("title", manga.getTitle());
-            intent.putExtra("image", manga.getImageUrl());
-            intent.putExtra("desc", manga.getDescription());
+
+            // 🔥 ONLY PASS ID
+            intent.putExtra("id", manga.getId());
+
             context.startActivity(intent);
         });
     }

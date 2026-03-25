@@ -179,6 +179,16 @@
             android:layout_height="wrap_content">
 
             <Button
+                android:id="@+id/sourceSelector"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="10dp"
+                android:text="Source: MangaDex"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/pink_pill"/>
+
+            <Button
                 android:id="@+id/continueButton"
                 android:text="Start Reading"
                 android:textColor="#FFFFFF"
@@ -186,6 +196,8 @@
                 android:layout_marginTop="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"/>
+
+
 
             <GridLayout
                 android:id="@+id/chaptersGrid"

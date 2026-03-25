@@ -95,17 +95,16 @@ public class MainActivity extends AppCompatActivity {
             for (int i = 0; i < mediaArray.length(); i++) {
                 JSONObject item = mediaArray.getJSONObject(i);
 
+                int id = item.getInt("id"); // ✅ ADD THIS
+
                 JSONObject titleObj = item.getJSONObject("title");
 
-// 🔥 FORCE ENGLISH FIRST
                 String title = titleObj.optString("english");
 
-// fallback → userPreferred
                 if (title == null || title.equals("null") || title.isEmpty()) {
                     title = titleObj.optString("userPreferred");
                 }
 
-// final fallback → romaji
                 if (title == null || title.equals("null") || title.isEmpty()) {
                     title = titleObj.optString("romaji");
                 }
@@ -116,7 +115,8 @@ public class MainActivity extends AppCompatActivity {
 
                 String desc = item.optString("description", "No description");
 
-                list.add(new Manga(title, image, desc));
+                list.add(new Manga(id, title, image, desc)); // ✅ FIXED
+
             }
 
         } catch (Exception e) {
@@ -130,12 +130,14 @@ public class MainActivity extends AppCompatActivity {
         List<Manga> list = new ArrayList<>();
 
         list.add(new Manga(
+                1,
                 "Solo Leveling",
                 "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx113138.jpg",
                 "Continue reading..."
         ));
 
         list.add(new Manga(
+                2,
                 "One Piece",
                 "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013.jpg",
                 "Continue reading..."
