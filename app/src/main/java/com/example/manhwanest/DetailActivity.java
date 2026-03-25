@@ -22,6 +22,15 @@ import com.bumptech.glide.Glide;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import java.util.ArrayList;
+
+import com.example.manhwanest.sources.MangaDexSource;
+import com.example.manhwanest.sources.Source;
+import com.example.manhwanest.sources.Chapter;
+import com.example.manhwanest.sources.MangaBuddySource;
+import com.example.manhwanest.sources.MangaPillSource;
+
+import java.util.List;
 
 public class DetailActivity extends AppCompatActivity {
 
@@ -31,21 +40,27 @@ public class DetailActivity extends AppCompatActivity {
     Button listEditorButton;
     Button infoTab, readTab, continueButton;
 
-    // ✅ Source selector
     Button sourceSelector;
     String selectedSource = "MangaDex";
 
     LinearLayout infoLayout, readLayout;
     GridLayout chaptersGrid;
 
+    String currentTitle = "";
     String currentStatus = "Add to List";
+
+    int currentStart = 1;
+    int rangeSize = 100;
+    List<Chapter> cachedChapters = null;
+
+    Button prevBtn, nextBtn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
 
-        // 🔥 Bind UI
+        // UI Bind
         bannerImage = findViewById(R.id.bannerImage);
         coverImage = findViewById(R.id.coverImage);
         titleText = findViewById(R.id.titleText);
@@ -56,7 +71,6 @@ public class DetailActivity extends AppCompatActivity {
         chaptersText = findViewById(R.id.chaptersText);
 
         listEditorButton = findViewById(R.id.listEditorButton);
-
         infoTab = findViewById(R.id.infoTab);
         readTab = findViewById(R.id.readTab);
 
@@ -68,16 +82,14 @@ public class DetailActivity extends AppCompatActivity {
 
         sourceSelector = findViewById(R.id.sourceSelector);
 
-        // 🔥 Default UI
+        prevBtn = findViewById(R.id.prevBtn);
+        nextBtn = findViewById(R.id.nextBtn);
+
         listEditorButton.setText(currentStatus);
         infoLayout.setVisibility(View.VISIBLE);
         readLayout.setVisibility(View.GONE);
 
-        // 🔥 Get ID
         int animeId = getIntent().getIntExtra("id", -1);
-
-// 🔍 DEBUG LOG
-        android.util.Log.d("DEBUG_ID", "Received ID: " + animeId);
 
         if (animeId != -1) {
             fetchAnimeDetails(animeId);
@@ -85,12 +97,11 @@ public class DetailActivity extends AppCompatActivity {
             Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
         }
 
-        // 🔥 Source selector
+        // Source selector
         sourceSelector.setText("Source: " + selectedSource + " ▼");
         sourceSelector.setOnClickListener(v -> showSourceDialog());
 
-        // 🔥 TAB SWITCHING
-
+        // Tabs
         infoTab.setOnClickListener(v -> {
             infoLayout.setVisibility(View.VISIBLE);
             readLayout.setVisibility(View.GONE);
@@ -111,19 +122,18 @@ public class DetailActivity extends AppCompatActivity {
 
             readTab.setTextColor(getResources().getColor(android.R.color.white));
             infoTab.setTextColor(getResources().getColor(android.R.color.darker_gray));
+
+            currentStart = 1; //    🔥 RESET RANGE
+            cachedChapters = null;
+            loadChaptersFromSource();
         });
 
-        // 🔥 Continue button
         continueButton.setOnClickListener(v -> {
             startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
         });
 
-        // 🔥 DEMO CHAPTER GRID (will replace later)
-        loadDummyChapters();
-
-        // 🔥 LIST EDITOR
+        // List Editor
         listEditorButton.setOnClickListener(v -> {
-
             ListEditorBottomSheet sheet = new ListEditorBottomSheet();
 
             sheet.setOnSaveListener((status, progress, score) -> {
@@ -133,24 +143,44 @@ public class DetailActivity extends AppCompatActivity {
 
             sheet.show(getSupportFragmentManager(), "ListEditor");
         });
+
+        prevBtn.setOnClickListener(v -> {
+            if (currentStart > 1) {
+                currentStart = Math.max(1, currentStart - rangeSize);
+                loadChaptersFromSource();
+            } else {
+                Toast.makeText(this, "Already at first page", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        nextBtn.setOnClickListener(v -> {
+            if (cachedChapters != null) {
+
+                // 🔥 check if next page exists
+                if (currentStart + rangeSize <= cachedChapters.size()) {
+                    currentStart += rangeSize;
+                    loadChaptersFromSource();
+                } else {
+                    Toast.makeText(this, "No more chapters", Toast.LENGTH_SHORT).show();
+                }
+
+            } else {
+                // fallback (shouldn't happen normally)
+                currentStart += rangeSize;
+                loadChaptersFromSource();
+            }
+        });
     }
 
-    // 🔥 ANILIST API
+    // 🔥 FETCH ANILIST DATA
     private void fetchAnimeDetails(int id) {
 
         String url = "https://graphql.anilist.co";
 
         String query = "{ Media(id: " + id + ", type: MANGA) { " +
-                "id " +
                 "title { english userPreferred } " +
-                "description " +
-                "bannerImage " +
-                "coverImage { large } " +
-                "genres " +
-                "averageScore " +
-                "status " +
-                "chapters " +
-                "} }";
+                "description bannerImage coverImage { large } " +
+                "genres averageScore status chapters } }";
 
         JSONObject jsonBody = new JSONObject();
         try {
@@ -169,7 +199,6 @@ public class DetailActivity extends AppCompatActivity {
                     try {
                         JSONObject media = response.getJSONObject("data").getJSONObject("Media");
 
-                        // ✅ TITLE (ENGLISH FIRST)
                         JSONObject titleObj = media.getJSONObject("title");
                         String title = titleObj.optString("english");
 
@@ -177,27 +206,22 @@ public class DetailActivity extends AppCompatActivity {
                             title = titleObj.optString("userPreferred");
                         }
 
+                        currentTitle = title;
                         titleText.setText(title);
 
-                        // ✅ IMAGES
                         String banner = media.optString("bannerImage");
                         String cover = media.getJSONObject("coverImage").optString("large");
 
                         Glide.with(this).load(cover).into(coverImage);
                         Glide.with(this).load(banner).into(bannerImage);
 
-                        // ✅ DESCRIPTION CLEAN
                         String description = media.optString("description");
-
                         if (description != null) {
                             descriptionText.setText(
                                     Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY)
                             );
-                        } else {
-                            descriptionText.setText("No description available.");
                         }
 
-                        // ✅ GENRES
                         JSONArray genresArray = media.getJSONArray("genres");
                         StringBuilder genres = new StringBuilder();
 
@@ -208,17 +232,13 @@ public class DetailActivity extends AppCompatActivity {
                             }
                         }
 
-                        genresText.setText("Genres: " + genres.toString());
+                        genresText.setText("Genres: " + genres);
 
-                        // ✅ SCORE
                         int score = media.optInt("averageScore", 0);
-                        ratingText.setText("⭐ " + score);
+                        ratingText.setText("⭐ " + (score / 10f));
 
-                        // ✅ STATUS
-                        String status = media.optString("status", "Unknown");
-                        statusText.setText("Status: " + status);
+                        statusText.setText("Status: " + media.optString("status", "Unknown"));
 
-                        // ✅ CHAPTERS
                         int chapters = media.optInt("chapters", 0);
                         chaptersText.setText("Chapters: " + (chapters == 0 ? "?" : chapters));
 
@@ -226,63 +246,160 @@ public class DetailActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                 },
-                error -> {
-                    error.printStackTrace();
-                    Toast.makeText(this, "Failed to load details", Toast.LENGTH_SHORT).show();
-                }
+                error -> Toast.makeText(this, "Failed to load details", Toast.LENGTH_SHORT).show()
         );
 
         queue.add(request);
     }
 
-    // 🔥 SOURCE DIALOG
+    // 🔥 LOAD CHAPTERS FROM MANGADEX
+    // 🔥 LOAD CHAPTERS FROM SELECTED SOURCE
+    private void loadChaptersFromSource() {
+
+        if (currentTitle == null || currentTitle.isEmpty()) {
+            Toast.makeText(this, "Title not loaded yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // ✅ RANGE TEXT
+        String currentRange = currentStart + " - " + (currentStart + rangeSize - 1);
+        String nextRange = (currentStart + rangeSize) + " - " + (currentStart + 2 * rangeSize - 1);
+
+        nextBtn.setText("Next ➡ (" + nextRange + ")");
+        prevBtn.setText("⬅ Prev (" + currentRange + ")");
+
+        // ✅ PREV BUTTON VISIBILITY
+        prevBtn.setVisibility(currentStart <= 1 ? View.INVISIBLE : View.VISIBLE);
+
+        // 🔥 IF ALREADY LOADED → JUST FILTER
+        if (cachedChapters != null) {
+            showFilteredChapters(cachedChapters);
+            return;
+        }
+
+        chaptersGrid.removeAllViews();
+
+
+        Source source;
+
+        // 🔥 SOURCE SWITCH
+        switch (selectedSource) {
+
+            case "MangaPill":
+                source = new MangaPillSource();
+                break;
+
+            case "MangaDex":
+                source = new MangaDexSource(this);
+                break;
+
+            case "MangaBuddy":
+                source = new MangaBuddySource(); // optional (you said you're dropping it)
+                break;
+
+            default:
+                Toast.makeText(this, "Source not implemented yet", Toast.LENGTH_SHORT).show();
+                return;
+        }
+
+        source.getChapters(currentTitle, new Source.ChapterCallback() {
+            @Override
+            public void onSuccess(List<Chapter> chapters) {
+                cachedChapters = chapters; // 🔥 SAVE
+                showFilteredChapters(chapters);
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(DetailActivity.this, error, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showFilteredChapters(List<Chapter> chapters) {
+
+        chaptersGrid.removeAllViews();
+        chaptersGrid.setColumnCount(4); // 🔥 THIS FIXES YOUR GRID
+
+        int startIndex = currentStart - 1;
+        int endIndex = Math.min(startIndex + rangeSize, chapters.size());
+
+        if (startIndex >= chapters.size()) {
+            Toast.makeText(this, "No more chapters", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        for (int i = startIndex; i < endIndex; i++) {
+
+            final int index = i;
+            final List<Chapter> finalChapters = chapters;
+
+            Chapter chapter = chapters.get(i);
+
+            TextView btn = new TextView(this);
+            btn.setText(chapter.getNumber());
+            btn.setBackgroundResource(R.drawable.pill_bg);
+
+            btn.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+            btn.setTextColor(getResources().getColor(android.R.color.white));
+            btn.setPadding(0, 24, 0, 24);
+
+            // 🔥 THIS WAS MISSING (MAIN FIX)
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0;
+            params.height = GridLayout.LayoutParams.WRAP_CONTENT;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            params.setMargins(8, 8, 8, 8);
+
+            btn.setLayoutParams(params);
+
+            // 🔥 CLICK LOGIC (your existing)
+            btn.setOnClickListener(v -> {
+                Intent intent = new Intent(this, ReaderActivity.class);
+
+                intent.putExtra("chapter_id", chapter.getId());
+                intent.putExtra("chapter_number", chapter.getNumber());
+                intent.putExtra("chapter_index", index);
+                intent.putExtra("chapter_list", new ArrayList<>(finalChapters));
+
+                startActivity(intent);
+            });
+
+            chaptersGrid.addView(btn);
+        }
+
+        Toast.makeText(this,
+                "Showing " + (startIndex + 1) + " - " + endIndex,
+                Toast.LENGTH_SHORT).show();
+    }
     private void showSourceDialog() {
-        String[] sources = {"MangaDex", "MangaBuddy", "MangaPill", "MGecko"};
+
+        String[] sources = {
+                "MangaDex",
+                "MangaBuddy",
+                "MangaPill",
+                "MGecko"
+        };
 
         new AlertDialog.Builder(this)
                 .setTitle("Select Source")
                 .setItems(sources, (dialog, which) -> {
+
                     selectedSource = sources[which];
+
                     sourceSelector.setText("Source: " + selectedSource + " ▼");
 
-                    Toast.makeText(this, "Selected: " + selectedSource, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this,
+                            "Selected: " + selectedSource,
+                            Toast.LENGTH_SHORT).show();
 
-                    // 🔥 Later: reload chapters based on source
+// 🔥 VERY IMPORTANT FIX
+                    cachedChapters = null;   // clear old chapters
+                    currentStart = 1;        // reset pagination
+
+// 🔥 Reload chapters
+                    loadChaptersFromSource();
                 })
                 .show();
-    }
-
-    // 🔥 TEMP CHAPTER GRID
-    private void loadDummyChapters() {
-
-        int lastReadChapter = 5;
-
-        for (int i = 1; i <= 20; i++) {
-
-            TextView chapterBtn = new TextView(this);
-            chapterBtn.setText(String.valueOf(i));
-            chapterBtn.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-            chapterBtn.setTextColor(getResources().getColor(android.R.color.white));
-            chapterBtn.setPadding(0, 24, 0, 24);
-
-            if (lastReadChapter > 0) {
-                continueButton.setText("Continue Reading (Ch " + lastReadChapter + ")");
-            } else {
-                continueButton.setText("Start Reading");
-            }
-
-            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-            params.width = 0;
-            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
-            params.setMargins(8, 8, 8, 8);
-
-            chapterBtn.setLayoutParams(params);
-
-            chapterBtn.setOnClickListener(v -> {
-                startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
-            });
-
-            chaptersGrid.addView(chapterBtn);
-        }
     }
 }

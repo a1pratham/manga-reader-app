@@ -7,39 +7,59 @@ import android.widget.ImageView;
 
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+
+import java.util.ArrayList;
+import java.util.List;
+import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.LazyHeaders;
+
 public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder> {
 
-    int[] pages = {
-            R.drawable.manga1,
-            R.drawable.manga2,
-            R.drawable.manga3,
-            R.drawable.manga1,
-            R.drawable.manga2
-    };
+    private List<String> images = new ArrayList<>();
+
+    public void setImages(List<String> newImages) {
+        images = newImages;
+        notifyDataSetChanged();
+    }
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_page, parent, false);
+                .inflate(R.layout.item_reader_page, parent, false);
         return new ViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        holder.image.setImageResource(pages[position]);
+
+        String imageUrl = images.get(position);
+
+        GlideUrl glideUrl = new GlideUrl(
+                imageUrl,
+                new LazyHeaders.Builder()
+                        .addHeader("Referer", "https://mangapill.com/")
+                        .addHeader("User-Agent", "Mozilla/5.0")
+                        .build()
+        );
+
+        Glide.with(holder.itemView.getContext())
+                .load(glideUrl)
+                .into(holder.imageView);
     }
 
     @Override
     public int getItemCount() {
-        return pages.length;
+        return images.size();
     }
 
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        ImageView image;
+    static class ViewHolder extends RecyclerView.ViewHolder {
+
+        ImageView imageView;
 
         public ViewHolder(View itemView) {
             super(itemView);
-            image = itemView.findViewById(R.id.pageImage);
+            imageView = itemView.findViewById(R.id.pageImage);
         }
     }
 }
