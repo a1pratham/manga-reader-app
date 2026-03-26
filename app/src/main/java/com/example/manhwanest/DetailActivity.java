@@ -11,6 +11,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ProgressBar;
+
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -36,10 +38,13 @@ public class DetailActivity extends AppCompatActivity {
     TextView titleText, descriptionText, statusText, ratingText, genresText, chaptersText;
 
     Button listEditorButton;
+    ProgressBar chapterLoader;
     Button infoTab, readTab, continueButton;
 
+    View loaderOverlay;
+
     Button sourceSelector;
-    String selectedSource = "Select Source";
+    String selectedSource = "MangaPill";
 
     LinearLayout infoLayout, readLayout;
     GridLayout chaptersGrid;
@@ -67,6 +72,8 @@ public class DetailActivity extends AppCompatActivity {
         ratingText = findViewById(R.id.ratingText);
         genresText = findViewById(R.id.genresText);
         chaptersText = findViewById(R.id.chaptersText);
+        chapterLoader = findViewById(R.id.chapterLoader);
+        loaderOverlay = findViewById(R.id.loaderOverlay);
 
         listEditorButton = findViewById(R.id.listEditorButton);
         infoTab = findViewById(R.id.infoTab);
@@ -270,10 +277,16 @@ public class DetailActivity extends AppCompatActivity {
 
         // 🔥 IF ALREADY LOADED → JUST FILTER
         if (cachedChapters != null) {
+            loaderOverlay.setVisibility(View.GONE);
+            chapterLoader.setVisibility(View.GONE);
+
             showFilteredChapters(cachedChapters);
             return;
         }
 
+
+        loaderOverlay.setVisibility(View.VISIBLE);
+        chapterLoader.setVisibility(View.VISIBLE);
         chaptersGrid.removeAllViews();
 
 
@@ -294,12 +307,19 @@ public class DetailActivity extends AppCompatActivity {
         source.getChapters(currentTitle, new Source.ChapterCallback() {
             @Override
             public void onSuccess(List<Chapter> chapters) {
-                cachedChapters = chapters; // 🔥 SAVE
+                cachedChapters = chapters;
+
+                loaderOverlay.setVisibility(View.GONE);
+                chapterLoader.setVisibility(View.GONE);
+
                 showFilteredChapters(chapters);
             }
 
             @Override
             public void onError(String error) {
+                loaderOverlay.setVisibility(View.GONE);
+                chapterLoader.setVisibility(View.GONE);
+
                 Toast.makeText(DetailActivity.this, error, Toast.LENGTH_SHORT).show();
             }
         });

@@ -1,241 +1,256 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:background="#0D0D0D"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <!-- 🔥 MAIN CONTENT -->
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="match_parent">
 
-        <!-- 🔥 TOP BANNER -->
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="220dp">
-
-            <ImageView
-                android:id="@+id/bannerImage"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/gradient_dark_overlay"/>
-        </FrameLayout>
-
-        <!-- 🔥 COVER + INFO -->
         <LinearLayout
-            android:orientation="horizontal"
-            android:padding="16dp"
+            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <ImageView
-                android:id="@+id/coverImage"
-                android:layout_width="110dp"
-                android:layout_height="160dp"
-                android:scaleType="centerCrop"
-                android:background="#222"/>
+            <!-- 🔥 TOP BANNER -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="220dp">
 
+                <ImageView
+                    android:id="@+id/bannerImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/gradient_dark_overlay"/>
+            </FrameLayout>
+
+            <!-- 🔥 COVER + INFO -->
             <LinearLayout
-                android:orientation="vertical"
-                android:layout_marginStart="12dp"
-                android:layout_width="0dp"
-                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <TextView
-                    android:id="@+id/titleText"
-                    android:text="Title"
-                    android:textColor="#FFFFFF"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"/>
+                <ImageView
+                    android:id="@+id/coverImage"
+                    android:layout_width="110dp"
+                    android:layout_height="160dp"
+                    android:scaleType="centerCrop"
+                    android:background="#222"/>
 
-                <TextView
-                    android:id="@+id/statusText"
-                    android:text="Status"
-                    android:textColor="#AAAAAA"
-                    android:textSize="13sp"
-                    android:layout_marginTop="6dp"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"/>
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content">
 
-                <TextView
-                    android:id="@+id/ratingText"
-                    android:text="⭐ --"
-                    android:textColor="#FFD54F"
-                    android:textSize="14sp"
-                    android:layout_marginTop="4dp"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"/>
+                    <TextView
+                        android:id="@+id/titleText"
+                        android:text="Title"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"/>
 
-                <TextView
-                    android:id="@+id/chaptersText"
-                    android:text="Chapters: --"
-                    android:textColor="#CCCCCC"
-                    android:textSize="13sp"
-                    android:layout_marginTop="4dp"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"/>
+                    <TextView
+                        android:id="@+id/statusText"
+                        android:text="Status"
+                        android:textColor="#AAAAAA"
+                        android:textSize="13sp"
+                        android:layout_marginTop="6dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"/>
 
+                    <TextView
+                        android:id="@+id/ratingText"
+                        android:text="⭐ --"
+                        android:textColor="#FFD54F"
+                        android:textSize="14sp"
+                        android:layout_marginTop="4dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"/>
+
+                    <TextView
+                        android:id="@+id/chaptersText"
+                        android:text="Chapters: --"
+                        android:textColor="#CCCCCC"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"/>
+
+                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
 
-
-
-        <!-- 🔥 TABS -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="10dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <Button
-                android:id="@+id/infoTab"
-                android:text="Info"
-                android:textColor="#FFFFFF"
-                android:background="@drawable/pink_pill"
-                android:layout_weight="1"
-                android:layout_width="0dp"
-                android:layout_height="45dp"/>
-
-            <Button
-                android:id="@+id/readTab"
-                android:text="Read"
-                android:textColor="#AAAAAA"
-                android:background="@drawable/pill_bg"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:layout_width="0dp"
-                android:layout_height="45dp"/>
-        </LinearLayout>
-
-        <!-- 🔥 INFO CONTENT (FIXED) -->
-        <LinearLayout
-            android:id="@+id/infoLayout"
-            android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <!-- 🔥 LIST BUTTON -->
-            <Button
-                android:id="@+id/listEditorButton"
-                android:text="Add to List"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/pink_pill"
-                android:layout_width="match_parent"
-                android:layout_marginBottom="12dp"
-                android:layout_height="50dp"/>
-
-            <TextView
-                android:text="Genres"
-                android:textColor="#888"
-
-                android:textSize="13sp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
-
-            <TextView
-                android:id="@+id/genresText"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:layout_marginBottom="12dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
-
-            <TextView
-                android:text="Synopsis"
-                android:textColor="#888"
-                android:textSize="13sp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
-
-            <TextView
-                android:id="@+id/descriptionText"
-                android:textColor="#CCCCCC"
-                android:textSize="14sp"
-                android:lineSpacingExtra="4dp"
-                android:layout_marginTop="4dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
-        </LinearLayout>
-
-        <!-- 🔥 READ CONTENT -->
-        <LinearLayout
-            android:id="@+id/readLayout"
-            android:orientation="vertical"
-            android:visibility="gone"
-            android:paddingHorizontal="16dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <Button
-                android:id="@+id/sourceSelector"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="10dp"
-                android:text="Source: MangaDex"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:background="@drawable/pink_pill"/>
-
-            <Button
-                android:id="@+id/continueButton"
-                android:text="Start Reading"
-                android:textColor="#FFFFFF"
-                android:background="@drawable/pink_pill"
-                android:layout_marginTop="10dp"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"/>
-
+            <!-- 🔥 TABS -->
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="10dp">
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
                 <Button
-                    android:id="@+id/prevBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="45dp"
-                    android:layout_weight="1"
-                    android:text="⬅ Prev"
-                    android:textAllCaps="false"
+                    android:id="@+id/infoTab"
+                    android:text="Info"
                     android:textColor="#FFFFFF"
-                    android:background="@drawable/pill_bg"/>
+                    android:background="@drawable/pink_pill"
+                    android:layout_weight="1"
+                    android:layout_width="0dp"
+                    android:layout_height="45dp"/>
 
                 <Button
-                    android:id="@+id/nextBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="45dp"
-                    android:layout_weight="1"
-                    android:text="Next ➡"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
+                    android:id="@+id/readTab"
+                    android:text="Read"
+                    android:textColor="#AAAAAA"
                     android:background="@drawable/pill_bg"
-                    android:layout_marginStart="8dp"/>
-
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:layout_width="0dp"
+                    android:layout_height="45dp"/>
             </LinearLayout>
 
-            <GridLayout
-                android:id="@+id/chaptersGrid"
-                android:columnCount="4"
-                android:layout_marginTop="16dp"
-                android:useDefaultMargins="true"
+            <!-- 🔥 INFO CONTENT -->
+            <LinearLayout
+                android:id="@+id/infoLayout"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
+                android:layout_height="wrap_content">
+
+                <Button
+                    android:id="@+id/listEditorButton"
+                    android:text="Add to List"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/pink_pill"
+                    android:layout_width="match_parent"
+                    android:layout_marginBottom="12dp"
+                    android:layout_height="50dp"/>
+
+                <TextView
+                    android:text="Genres"
+                    android:textColor="#888"
+                    android:textSize="13sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+
+                <TextView
+                    android:id="@+id/genresText"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="12dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+
+                <TextView
+                    android:text="Synopsis"
+                    android:textColor="#888"
+                    android:textSize="13sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+
+                <TextView
+                    android:id="@+id/descriptionText"
+                    android:textColor="#CCCCCC"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <!-- 🔥 READ CONTENT -->
+            <LinearLayout
+                android:id="@+id/readLayout"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:paddingHorizontal="16dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <Button
+                    android:id="@+id/sourceSelector"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="10dp"
+                    android:text="Source: MangaPill"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/pink_pill"/>
+
+                <Button
+                    android:id="@+id/continueButton"
+                    android:text="Start Reading"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/pink_pill"
+                    android:layout_marginTop="10dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="10dp">
+
+                    <Button
+                        android:id="@+id/prevBtn"
+                        android:layout_width="0dp"
+                        android:layout_height="45dp"
+                        android:layout_weight="1"
+                        android:text="⬅ Prev"
+                        android:textAllCaps="false"
+                        android:textColor="#FFFFFF"
+                        android:background="@drawable/pill_bg"/>
+
+                    <Button
+                        android:id="@+id/nextBtn"
+                        android:layout_width="0dp"
+                        android:layout_height="45dp"
+                        android:layout_weight="1"
+                        android:text="Next ➡"
+                        android:textAllCaps="false"
+                        android:textColor="#FFFFFF"
+                        android:background="@drawable/pill_bg"
+                        android:layout_marginStart="8dp"/>
+                </LinearLayout>
+
+                <GridLayout
+                    android:id="@+id/chaptersGrid"
+                    android:columnCount="4"
+                    android:layout_marginTop="16dp"
+                    android:useDefaultMargins="true"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
 
         </LinearLayout>
+    </ScrollView>
 
-    </LinearLayout>
+    <!-- 🔄 LOADER OVERLAY -->
+    <View
+        android:id="@+id/loaderOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:visibility="gone" />
 
-</ScrollView>
+    <ProgressBar
+        android:id="@+id/chapterLoader"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+</FrameLayout>
