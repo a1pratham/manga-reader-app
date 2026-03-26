@@ -63,6 +63,7 @@ public class DetailActivity extends AppCompatActivity {
 
     int savedProgress = 0;
     int savedScore = 0;
+    String savedStatus = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,6 +109,36 @@ public class DetailActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
         }
+
+        AniListApi.fetchMediaListEntry(this, mediaId, new AniListApi.AniListCallback() {
+            @Override
+            public void onSuccess(String status, int progress, int score) {
+                runOnUiThread(() -> {
+
+                    savedStatus = status;
+                    savedProgress = progress;
+                    savedScore = score;
+
+                    // 🔥 update button text
+                    String niceStatus = status.substring(0,1).toUpperCase() + status.substring(1).toLowerCase();
+
+                    listEditorButton.setText(
+                            niceStatus + " (" + savedProgress + "/" +
+                                    (totalChapters == 0 ? "?" : totalChapters) + ")"
+                    );
+                });
+            }
+
+            @Override
+            public void onEmpty() {
+                // not added yet → do nothing
+            }
+
+            @Override
+            public void onFailure(String error) {
+                // optional log
+            }
+        });
 
 
         // Source selector
@@ -168,7 +199,7 @@ public class DetailActivity extends AppCompatActivity {
 
             // ✅ PASS EXISTING DATA (for prefill)
             Bundle args = new Bundle();
-            args.putString("status", currentStatus);
+            args.putString("status", savedStatus.isEmpty() ? currentStatus : savedStatus);
             args.putInt("progress", savedProgress);
             args.putInt("score", savedScore);
             sheet.setArguments(args);
@@ -176,6 +207,7 @@ public class DetailActivity extends AppCompatActivity {
             sheet.setOnSaveListener((status, progress, score) -> {
 
                 currentStatus = status;
+                savedStatus = status;
 
                 String token = getSharedPreferences("user", MODE_PRIVATE)
                         .getString("token", null);
