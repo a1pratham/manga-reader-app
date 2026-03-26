@@ -40,6 +40,15 @@ public class ReaderActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_reader);
 
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
+
         // Bind views
         rvReader = findViewById(R.id.readerRecyclerView);
         webView = findViewById(R.id.webView);
@@ -62,11 +71,10 @@ public class ReaderActivity extends AppCompatActivity {
         // 🔥 TAP LISTENER (FINAL FIX)
         adapter.setOnImageTapListener(() -> {
             if (topBar.getVisibility() == View.VISIBLE) {
-                topBar.setVisibility(View.GONE);
-                bottomBar.setVisibility(View.GONE);
+                hideUI();
+                hideSystemUI();
             } else {
-                topBar.setVisibility(View.VISIBLE);
-                bottomBar.setVisibility(View.VISIBLE);
+                showUI();
             }
         });
 
@@ -125,6 +133,58 @@ public class ReaderActivity extends AppCompatActivity {
         webView.loadUrl(chapterUrl);
     }
 
+    private void hideUI() {
+        topBar.animate()
+                .alpha(0f)
+                .translationY(-topBar.getHeight())
+                .setDuration(200)
+                .withEndAction(() -> topBar.setVisibility(View.GONE));
+
+        bottomBar.animate()
+                .alpha(0f)
+                .translationY(bottomBar.getHeight())
+                .setDuration(200)
+                .withEndAction(() -> bottomBar.setVisibility(View.GONE));
+    }
+
+    private void showUI() {
+        topBar.setVisibility(View.VISIBLE);
+        bottomBar.setVisibility(View.VISIBLE);
+
+        topBar.setAlpha(0f);
+        bottomBar.setAlpha(0f);
+
+        topBar.setTranslationY(-topBar.getHeight());
+        bottomBar.setTranslationY(bottomBar.getHeight());
+
+        topBar.animate()
+                .alpha(1f)
+                .translationY(0)
+                .setDuration(200);
+
+        bottomBar.animate()
+                .alpha(1f)
+                .translationY(0)
+                .setDuration(200);
+    }
+
+    private void hideSystemUI() {
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        hideSystemUI();
+    }
+
     private void loadChapter(Chapter chapter) {
         String url = chapter.getId();
         String number = chapter.getNumber();
@@ -132,6 +192,7 @@ public class ReaderActivity extends AppCompatActivity {
         chapterTitle.setText("Chapter " + number);
         webView.loadUrl(url);
     }
+
 
     private void extractImages(String html) {
 
