@@ -24,10 +24,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.ArrayList;
 
-import com.example.manhwanest.sources.MangaDexSource;
 import com.example.manhwanest.sources.Source;
 import com.example.manhwanest.sources.Chapter;
-import com.example.manhwanest.sources.MangaBuddySource;
 import com.example.manhwanest.sources.MangaPillSource;
 
 import java.util.List;
@@ -41,7 +39,7 @@ public class DetailActivity extends AppCompatActivity {
     Button infoTab, readTab, continueButton;
 
     Button sourceSelector;
-    String selectedSource = "MangaDex";
+    String selectedSource = "Select Source";
 
     LinearLayout infoLayout, readLayout;
     GridLayout chaptersGrid;
@@ -252,8 +250,7 @@ public class DetailActivity extends AppCompatActivity {
         queue.add(request);
     }
 
-    // 🔥 LOAD CHAPTERS FROM MANGADEX
-    // 🔥 LOAD CHAPTERS FROM SELECTED SOURCE
+
     private void loadChaptersFromSource() {
 
         if (currentTitle == null || currentTitle.isEmpty()) {
@@ -287,14 +284,6 @@ public class DetailActivity extends AppCompatActivity {
 
             case "MangaPill":
                 source = new MangaPillSource();
-                break;
-
-            case "MangaDex":
-                source = new MangaDexSource(this);
-                break;
-
-            case "MangaBuddy":
-                source = new MangaBuddySource(); // optional (you said you're dropping it)
                 break;
 
             default:
@@ -375,8 +364,6 @@ public class DetailActivity extends AppCompatActivity {
     private void showSourceDialog() {
 
         String[] sources = {
-                "MangaDex",
-                "MangaBuddy",
                 "MangaPill",
                 "MGecko"
         };

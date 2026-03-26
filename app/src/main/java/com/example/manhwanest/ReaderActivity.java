@@ -2,7 +2,6 @@ package com.example.manhwanest;
 
 import android.annotation.SuppressLint;
 import android.os.Bundle;
-import android.view.MotionEvent;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
@@ -26,14 +25,14 @@ public class ReaderActivity extends AppCompatActivity {
     ReaderAdapter adapter;
     WebView webView;
 
-    // 🔥 UI
     ImageView backBtn;
-    TextView prevBtn, nextBtn, chapterTitle;
+    TextView prevBtn, nextBtn, chapterTitle, pageIndicator;
     View topBar, bottomBar;
 
-    // 🔥 CHAPTER DATA
     ArrayList<Chapter> chapterList;
     int currentIndex;
+
+    LinearLayoutManager layoutManager;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -41,9 +40,10 @@ public class ReaderActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_reader);
 
-        // 🔥 Bind views
+        // Bind views
         rvReader = findViewById(R.id.readerRecyclerView);
         webView = findViewById(R.id.webView);
+        pageIndicator = findViewById(R.id.pageIndicator);
 
         backBtn = findViewById(R.id.backBtn);
         prevBtn = findViewById(R.id.prevChapterBtn);
@@ -52,12 +52,25 @@ public class ReaderActivity extends AppCompatActivity {
         topBar = findViewById(R.id.topBar);
         bottomBar = findViewById(R.id.bottomBar);
 
-        rvReader.setLayoutManager(new LinearLayoutManager(this));
+        // Layout
+        layoutManager = new LinearLayoutManager(this);
+        rvReader.setLayoutManager(layoutManager);
 
         adapter = new ReaderAdapter();
         rvReader.setAdapter(adapter);
 
-        // 🔥 GET DATA
+        // 🔥 TAP LISTENER (FINAL FIX)
+        adapter.setOnImageTapListener(() -> {
+            if (topBar.getVisibility() == View.VISIBLE) {
+                topBar.setVisibility(View.GONE);
+                bottomBar.setVisibility(View.GONE);
+            } else {
+                topBar.setVisibility(View.VISIBLE);
+                bottomBar.setVisibility(View.VISIBLE);
+            }
+        });
+
+        // DATA
         String chapterUrl = getIntent().getStringExtra("chapter_id");
         String chapterNumber = getIntent().getStringExtra("chapter_number");
 
@@ -71,49 +84,27 @@ public class ReaderActivity extends AppCompatActivity {
             return;
         }
 
-        // 🔥 TITLE
         if (chapterNumber != null) {
             chapterTitle.setText("Chapter " + chapterNumber);
         }
 
-        // 🔥 BACK
         backBtn.setOnClickListener(v -> finish());
 
-        // 🔥 SHOW / HIDE UI
-        rvReader.setOnTouchListener((v, event) -> {
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                if (topBar.getVisibility() == View.VISIBLE) {
-                    topBar.setVisibility(View.GONE);
-                    bottomBar.setVisibility(View.GONE);
-                } else {
-                    topBar.setVisibility(View.VISIBLE);
-                    bottomBar.setVisibility(View.VISIBLE);
+        // 🔥 PAGE TRACKING
+        rvReader.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+
+                int currentPage = layoutManager.findFirstVisibleItemPosition() + 1;
+                int totalPages = adapter.getItemCount();
+
+                if (totalPages > 0) {
+                    pageIndicator.setText(currentPage + " / " + totalPages);
                 }
             }
-            return false;
         });
 
-        // 🔥 PREV BUTTON
-        prevBtn.setOnClickListener(v -> {
-            if (chapterList != null && currentIndex > 0) {
-                currentIndex--;
-                loadChapter(chapterList.get(currentIndex));
-            } else {
-                Toast.makeText(this, "No previous chapter", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        // 🔥 NEXT BUTTON
-        nextBtn.setOnClickListener(v -> {
-            if (chapterList != null && currentIndex < chapterList.size() - 1) {
-                currentIndex++;
-                loadChapter(chapterList.get(currentIndex));
-            } else {
-                Toast.makeText(this, "No next chapter", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        // 🔥 WEBVIEW SETUP
+        // WEBVIEW
         webView.getSettings().setJavaScriptEnabled(true);
 
         webView.addJavascriptInterface(new Object() {
@@ -131,22 +122,17 @@ public class ReaderActivity extends AppCompatActivity {
             }
         });
 
-        // 🔥 LOAD FIRST CHAPTER
         webView.loadUrl(chapterUrl);
     }
 
-    // 🔥 LOAD NEW CHAPTER
     private void loadChapter(Chapter chapter) {
-
         String url = chapter.getId();
         String number = chapter.getNumber();
 
         chapterTitle.setText("Chapter " + number);
-
         webView.loadUrl(url);
     }
 
-    // 🔥 IMAGE EXTRACTION
     private void extractImages(String html) {
 
         List<String> images = new ArrayList<>();
@@ -175,6 +161,7 @@ public class ReaderActivity extends AppCompatActivity {
                 Toast.makeText(this, "No images found 😭", Toast.LENGTH_SHORT).show();
             } else {
                 adapter.setImages(images);
+                pageIndicator.setText("1 / " + images.size());
             }
 
         } catch (Exception e) {
