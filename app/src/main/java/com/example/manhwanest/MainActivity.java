@@ -2,6 +2,9 @@ package com.example.manhwanest;
 
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.Toast;
+import android.net.Uri;
+import android.content.Intent;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -12,8 +15,6 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import android.content.Intent;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -41,7 +42,51 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(MainActivity.this, SearchActivity.class));
         });
 
+        findViewById(R.id.profileIcon).setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, ProfileActivity.class));
+        });
+
         loadHomeData();
+    }
+
+    // 🔥 HANDLE LOGIN RESPONSE
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        Uri uri = getIntent().getData();
+
+        if (uri != null && uri.toString().contains("access_token")) {
+
+            String fragment = uri.getFragment();
+
+            if (fragment != null) {
+
+                String[] parts = fragment.split("&");
+
+                for (String part : parts) {
+                    if (part.startsWith("access_token=")) {
+
+                        String token = part.replace("access_token=", "");
+
+                        saveToken(token);
+
+                        Toast.makeText(this, "Login Success 🔥", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+
+            // 🔥 PREVENT MULTIPLE TRIGGERS
+            setIntent(new Intent());
+        }
+    }
+
+    // 🔥 SAVE TOKEN
+    private void saveToken(String token) {
+        getSharedPreferences("user", MODE_PRIVATE)
+                .edit()
+                .putString("token", token)
+                .apply();
     }
 
     private MangaAdapter setupRecycler(RecyclerView recyclerView) {
@@ -95,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
             for (int i = 0; i < mediaArray.length(); i++) {
                 JSONObject item = mediaArray.getJSONObject(i);
 
-                int id = item.getInt("id"); // ✅ ADD THIS
+                int id = item.getInt("id");
 
                 JSONObject titleObj = item.getJSONObject("title");
 
@@ -115,8 +160,7 @@ public class MainActivity extends AppCompatActivity {
 
                 String desc = item.optString("description", "No description");
 
-                list.add(new Manga(id, title, image, desc)); // ✅ FIXED
-
+                list.add(new Manga(id, title, image, desc));
             }
 
         } catch (Exception e) {

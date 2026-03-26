@@ -8,6 +8,12 @@
     import com.android.volley.toolbox.Volley;
 
     import org.json.JSONObject;
+    import java.io.OutputStream;
+    import java.net.HttpURLConnection;
+    import java.net.URL;
+    import java.util.Scanner;
+
+    import org.json.JSONObject;
 
     public class AniListApi {
 
@@ -19,6 +25,37 @@
 
         public static void fetchPopular(Context context, ApiCallback callback) {
             fetch(context, "POPULARITY_DESC", callback);
+        }
+
+        public static void saveToList(String token, int mediaId, int progress, String status, ApiCallback callback) {
+
+            new Thread(() -> {
+                try {
+                    URL url = new URL("https://graphql.anilist.co");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("Authorization", "Bearer " + token);
+                    conn.setRequestProperty("Content-Type", "application/json");
+                    conn.setDoOutput(true);
+
+                    JSONObject json = new JSONObject();
+                    json.put("query", saveToListQuery(mediaId, progress, status));
+
+                    OutputStream os = conn.getOutputStream();
+                    os.write(json.toString().getBytes());
+                    os.close();
+
+                    Scanner scanner = new Scanner(conn.getInputStream());
+                    String response = scanner.useDelimiter("\\A").next();
+                    scanner.close();
+
+                    callback.onSuccess(new JSONObject(response));
+
+                } catch (Exception e) {
+                    callback.onError(e.toString());
+                }
+            }).start();
         }
 
         public static void searchManga(Context context, String search, ApiCallback callback) {
@@ -81,4 +118,17 @@
             void onSuccess(JSONObject response);
             void onError(String error);
         }
+
+        public static String getUserQuery() {
+            return "{ Viewer { name avatar { large } } }";
+        }
+
+        public static String saveToListQuery(int mediaId, int progress, String status) {
+            return "mutation { " +
+                    "SaveMediaListEntry(mediaId: " + mediaId +
+                    ", status: " + status +
+                    ", progress: " + progress + ") { id } }";
+        }
+
+
     }

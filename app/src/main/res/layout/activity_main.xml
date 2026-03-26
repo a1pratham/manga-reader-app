@@ -8,19 +8,37 @@
     android:padding="12dp">
 
     <!-- 🔍 SEARCH BAR -->
-    <EditText
-        android:id="@+id/searchBar"
-        android:layout_marginTop="24dp"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:hint="SEARCH"
-        android:textColor="#fff"
-        android:textColorHint="#aaa"
-        android:padding="12dp"
-        android:background="@drawable/search_bg"
-        android:focusable="false"
-        android:clickable="true"
-        android:cursorVisible="false"/>
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="24dp"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/searchBar"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:hint="SEARCH"
+            android:textColor="#fff"
+            android:textColorHint="#aaa"
+            android:padding="12dp"
+            android:background="@drawable/search_bg"
+            android:focusable="false"
+            android:clickable="true"
+            android:cursorVisible="false"/>
+
+        <ImageView
+            android:id="@+id/profileIcon"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/circle_bg"
+            android:padding="10dp"
+            android:src="@drawable/ic_launcher_foreground"/>
+
+    </LinearLayout>
 
     <!-- 📜 SCROLL CONTENT -->
     <ScrollView
@@ -86,6 +104,9 @@
 
         </LinearLayout>
 
+
     </ScrollView>
+
+
 
 </LinearLayout>

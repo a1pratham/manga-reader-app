@@ -1,6 +1,7 @@
 package com.example.manhwanest;
 
 import android.os.Bundle;
+import android.text.InputFilter;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -54,7 +55,12 @@ public class ListEditorBottomSheet extends BottomSheetDialogFragment {
         endDateButton = view.findViewById(R.id.endDateButton);
         deleteButton = view.findViewById(R.id.deleteButton);
 
-        // 🔥 DROPDOWN SETUP (FIXED)
+        // 🔥 LIMIT SCORE INPUT (max 2 digits)
+        scoreInput.setFilters(new InputFilter[]{
+                new InputFilter.LengthFilter(2)
+        });
+
+        // 🔥 DROPDOWN SETUP
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 requireContext(),
                 android.R.layout.simple_list_item_1,
@@ -63,11 +69,24 @@ public class ListEditorBottomSheet extends BottomSheetDialogFragment {
 
         statusDropdown.setAdapter(adapter);
 
-        // 🔥 Show dropdown on click (IMPORTANT)
+        // Show dropdown on click
         statusDropdown.setOnClickListener(v -> statusDropdown.showDropDown());
 
         // Default value
         statusDropdown.setText("Planning", false);
+
+        // 🔥 PREFILL VALUES (IMPORTANT)
+        Bundle args = getArguments();
+
+        if (args != null) {
+            statusDropdown.setText(args.getString("status", "Planning"), false);
+            progressInput.setText(String.valueOf(args.getInt("progress", 0)));
+
+            int score = args.getInt("score", 0);
+            if (score != 0) {
+                scoreInput.setText(String.valueOf(score));
+            }
+        }
 
         // ➕ +1 BUTTON
         plusButton.setOnClickListener(v -> {
@@ -77,7 +96,7 @@ public class ListEditorBottomSheet extends BottomSheetDialogFragment {
             progressInput.setText(String.valueOf(value));
         });
 
-        // 📅 START DATE (simple placeholder)
+        // 📅 START DATE
         startDateButton.setOnClickListener(v -> {
             startDateButton.setText("Today");
         });
@@ -97,11 +116,11 @@ public class ListEditorBottomSheet extends BottomSheetDialogFragment {
         // 💾 SAVE BUTTON
         saveButton.setOnClickListener(v -> {
 
-            String status = statusDropdown.getText().toString(); // ✅ FIXED
+            String status = statusDropdown.getText().toString();
             String progress = progressInput.getText().toString().trim();
             String score = scoreInput.getText().toString().trim();
 
-            // 🔥 SCORE VALIDATION
+            // 🔥 SCORE VALIDATION (1–10)
             if (!TextUtils.isEmpty(score)) {
                 int s = Integer.parseInt(score);
                 if (s < 1 || s > 10) {
@@ -110,7 +129,7 @@ public class ListEditorBottomSheet extends BottomSheetDialogFragment {
                 }
             }
 
-            // 🔥 Send back
+            // 🔥 SEND BACK
             if (listener != null) {
                 listener.onSave(status, progress, score);
             }

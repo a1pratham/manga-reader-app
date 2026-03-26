@@ -41,6 +41,7 @@ public class DetailActivity extends AppCompatActivity {
     ProgressBar chapterLoader;
     Button infoTab, readTab, continueButton;
 
+    int mediaId = -1;
     View loaderOverlay;
 
     Button sourceSelector;
@@ -48,6 +49,8 @@ public class DetailActivity extends AppCompatActivity {
 
     LinearLayout infoLayout, readLayout;
     GridLayout chaptersGrid;
+
+    int totalChapters = 0;
 
     String currentTitle = "";
     String currentStatus = "Add to List";
@@ -57,6 +60,9 @@ public class DetailActivity extends AppCompatActivity {
     List<Chapter> cachedChapters = null;
 
     Button prevBtn, nextBtn;
+
+    int savedProgress = 0;
+    int savedScore = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,13 +100,15 @@ public class DetailActivity extends AppCompatActivity {
         infoLayout.setVisibility(View.VISIBLE);
         readLayout.setVisibility(View.GONE);
 
-        int animeId = getIntent().getIntExtra("id", -1);
+        mediaId = getIntent().getIntExtra("id", -1);
+        int animeId = mediaId;
 
         if (animeId != -1) {
             fetchAnimeDetails(animeId);
         } else {
             Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
         }
+
 
         // Source selector
         sourceSelector.setText("Source: " + selectedSource + " ▼");
@@ -134,16 +142,112 @@ public class DetailActivity extends AppCompatActivity {
         });
 
         continueButton.setOnClickListener(v -> {
-            startActivity(new Intent(DetailActivity.this, ReaderActivity.class));
+
+            if (cachedChapters == null || cachedChapters.isEmpty()) {
+                Toast.makeText(this, "Load chapters first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int index = Math.max(0, savedProgress - 1);
+
+            Chapter chapter = cachedChapters.get(index);
+
+            Intent intent = new Intent(this, ReaderActivity.class);
+            intent.putExtra("chapter_id", chapter.getId());
+            intent.putExtra("chapter_number", chapter.getNumber());
+            intent.putExtra("chapter_index", index);
+            intent.putExtra("chapter_list", new ArrayList<>(cachedChapters));
+
+            startActivity(intent);
         });
 
         // List Editor
         listEditorButton.setOnClickListener(v -> {
+
             ListEditorBottomSheet sheet = new ListEditorBottomSheet();
 
+            // ✅ PASS EXISTING DATA (for prefill)
+            Bundle args = new Bundle();
+            args.putString("status", currentStatus);
+            args.putInt("progress", savedProgress);
+            args.putInt("score", savedScore);
+            sheet.setArguments(args);
+
             sheet.setOnSaveListener((status, progress, score) -> {
+
                 currentStatus = status;
-                listEditorButton.setText(status);
+
+                String token = getSharedPreferences("user", MODE_PRIVATE)
+                        .getString("token", null);
+
+                if (token == null) {
+                    Toast.makeText(this, "Login required", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                if (mediaId == -1) {
+                    Toast.makeText(this, "Invalid media ID", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // 🔥 CONVERT PROGRESS
+                int progressInt = 0;
+                try {
+                    if (!progress.isEmpty()) {
+                        progressInt = Integer.parseInt(progress);
+                    }
+                } catch (Exception e) {
+                    progressInt = 0;
+                }
+
+                // 🔥 LIMIT PROGRESS
+                if (totalChapters > 0 && progressInt > totalChapters) {
+                    progressInt = totalChapters;
+                    Toast.makeText(this, "Max chapters reached", Toast.LENGTH_SHORT).show();
+                }
+
+                savedProgress = progressInt;
+
+                // 🔥 SCORE
+                int scoreInt = 0;
+                try {
+                    if (!score.isEmpty()) {
+                        scoreInt = Integer.parseInt(score);
+                    }
+                } catch (Exception e) {
+                    scoreInt = 0;
+                }
+
+                savedScore = scoreInt;
+
+                // 🔥 UPDATE BUTTON UI
+                listEditorButton.setText(
+                        currentStatus + " (" + savedProgress + "/" +
+                                (totalChapters == 0 ? "?" : totalChapters) + ")"
+                );
+
+                // 🔥 MAP STATUS
+                String apiStatus = mapStatus(status);
+
+                // 🔥 API CALL
+                AniListApi.saveToList(token, mediaId, savedProgress, apiStatus,
+                        new AniListApi.ApiCallback() {
+
+                            @Override
+                            public void onSuccess(JSONObject response) {
+                                runOnUiThread(() ->
+                                        Toast.makeText(DetailActivity.this, "Saved ✅", Toast.LENGTH_SHORT).show()
+                                );
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                runOnUiThread(() ->
+                                        Toast.makeText(DetailActivity.this, "Error ❌", Toast.LENGTH_SHORT).show()
+                                );
+                            }
+                        });
+
             });
 
             sheet.show(getSupportFragmentManager(), "ListEditor");
@@ -175,6 +279,8 @@ public class DetailActivity extends AppCompatActivity {
                 loadChaptersFromSource();
             }
         });
+
+
     }
 
     // 🔥 FETCH ANILIST DATA
@@ -244,8 +350,8 @@ public class DetailActivity extends AppCompatActivity {
 
                         statusText.setText("Status: " + media.optString("status", "Unknown"));
 
-                        int chapters = media.optInt("chapters", 0);
-                        chaptersText.setText("Chapters: " + (chapters == 0 ? "?" : chapters));
+                        totalChapters = media.optInt("chapters", 0);
+                        chaptersText.setText("Chapters: " + (totalChapters == 0 ? "?" : totalChapters));
 
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -408,5 +514,25 @@ public class DetailActivity extends AppCompatActivity {
                     loadChaptersFromSource();
                 })
                 .show();
+    }
+
+    private String mapStatus(String uiStatus) {
+
+        switch (uiStatus) {
+            case "Reading":
+                return "CURRENT";
+            case "Completed":
+                return "COMPLETED";
+            case "Planning":
+                return "PLANNING";
+            case "Dropped":
+                return "DROPPED";
+            case "Paused":
+                return "PAUSED";
+            case "Re-reading":
+                return "REPEATING";
+            default:
+                return "PLANNING";
+        }
     }
 }

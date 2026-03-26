@@ -18,14 +18,28 @@
         <activity android:name=".ReaderActivity"/>
         <activity android:name=".SearchActivity"/>
         <activity android:name=".ProfileActivity"/>
-        <activity
-            android:name=".MainActivity"
+        <activity android:name=".MainActivity"/>
+        <activity android:name=".ProfileActivity" />
+        <activity android:name=".LoginActivity"
             android:exported="true">
+
+            <!-- Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- OAuth -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+
+                <data
+                    android:scheme="myapp"
+                    android:host="callback"/>
+            </intent-filter>
+
         </activity>
     </application>
 

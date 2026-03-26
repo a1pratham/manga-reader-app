@@ -82,6 +82,32 @@ public class ReaderActivity extends AppCompatActivity {
             }
         });
 
+        prevBtn.setOnClickListener(v -> {
+            if (chapterList != null && currentIndex > 0) {
+
+                currentIndex--;
+
+                Chapter prevChapter = chapterList.get(currentIndex);
+                loadChapter(prevChapter);
+
+            } else {
+                Toast.makeText(this, "First chapter", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        nextBtn.setOnClickListener(v -> {
+            if (chapterList != null && currentIndex < chapterList.size() - 1) {
+
+                currentIndex++;
+
+                Chapter nextChapter = chapterList.get(currentIndex);
+                loadChapter(nextChapter);
+
+            } else {
+                Toast.makeText(this, "Last chapter", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         // DATA
         String chapterUrl = getIntent().getStringExtra("chapter_id");
         String chapterNumber = getIntent().getStringExtra("chapter_number");
@@ -221,10 +247,18 @@ public class ReaderActivity extends AppCompatActivity {
     }
 
     private void loadChapter(Chapter chapter) {
+
         String url = chapter.getId();
         String number = chapter.getNumber();
 
         chapterTitle.setText("Chapter " + number);
+
+        // 🔥 CLEAR OLD DATA
+        adapter.setImages(new ArrayList<>());
+        pageIndicator.setText("0 / 0");
+        pageSlider.setProgress(0);
+
+        // 🔥 LOAD NEW
         webView.loadUrl(url);
     }
 
