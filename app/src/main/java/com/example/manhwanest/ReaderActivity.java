@@ -9,6 +9,8 @@ import android.webkit.WebViewClient;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.SeekBar;
+
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -20,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ReaderActivity extends AppCompatActivity {
+    SeekBar pageSlider;
 
     RecyclerView rvReader;
     ReaderAdapter adapter;
@@ -53,6 +56,7 @@ public class ReaderActivity extends AppCompatActivity {
         rvReader = findViewById(R.id.readerRecyclerView);
         webView = findViewById(R.id.webView);
         pageIndicator = findViewById(R.id.pageIndicator);
+        pageSlider = findViewById(R.id.pageSlider);
 
         backBtn = findViewById(R.id.backBtn);
         prevBtn = findViewById(R.id.prevChapterBtn);
@@ -108,6 +112,7 @@ public class ReaderActivity extends AppCompatActivity {
 
                 if (totalPages > 0) {
                     pageIndicator.setText(currentPage + " / " + totalPages);
+                    pageSlider.setProgress(currentPage - 1);
                 }
             }
         });
@@ -130,10 +135,28 @@ public class ReaderActivity extends AppCompatActivity {
             }
         });
 
+        pageSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+
+                if (fromUser) {
+                    rvReader.scrollToPosition(progress);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
         webView.loadUrl(chapterUrl);
     }
 
     private void hideUI() {
+
         topBar.animate()
                 .alpha(0f)
                 .translationY(-topBar.getHeight())
@@ -145,14 +168,22 @@ public class ReaderActivity extends AppCompatActivity {
                 .translationY(bottomBar.getHeight())
                 .setDuration(200)
                 .withEndAction(() -> bottomBar.setVisibility(View.GONE));
+
+        pageSlider.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction(() -> pageSlider.setVisibility(View.GONE));
     }
 
     private void showUI() {
+
         topBar.setVisibility(View.VISIBLE);
         bottomBar.setVisibility(View.VISIBLE);
+        pageSlider.setVisibility(View.VISIBLE);
 
         topBar.setAlpha(0f);
         bottomBar.setAlpha(0f);
+        pageSlider.setAlpha(0f);
 
         topBar.setTranslationY(-topBar.getHeight());
         bottomBar.setTranslationY(bottomBar.getHeight());
@@ -165,6 +196,10 @@ public class ReaderActivity extends AppCompatActivity {
         bottomBar.animate()
                 .alpha(1f)
                 .translationY(0)
+                .setDuration(200);
+
+        pageSlider.animate()
+                .alpha(1f)
                 .setDuration(200);
     }
 
@@ -222,6 +257,12 @@ public class ReaderActivity extends AppCompatActivity {
                 Toast.makeText(this, "No images found 😭", Toast.LENGTH_SHORT).show();
             } else {
                 adapter.setImages(images);
+
+                // set slider range
+                pageSlider.setMax(images.size() - 1);
+                pageSlider.setProgress(0);
+
+                // initial page indicator
                 pageIndicator.setText("1 / " + images.size());
             }
 

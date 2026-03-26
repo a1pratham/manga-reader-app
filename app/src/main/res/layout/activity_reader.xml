@@ -20,7 +20,7 @@
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="80dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="12dp"
@@ -51,6 +51,17 @@
             android:src="@android:drawable/ic_menu_more"
             app:tint="#FFFFFF" />
     </LinearLayout>
+
+    <SeekBar
+        android:id="@+id/pageSlider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="80dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:max="100"
+        android:progress="0" />
 
     <!-- 🔽 BOTTOM BAR -->
     <LinearLayout

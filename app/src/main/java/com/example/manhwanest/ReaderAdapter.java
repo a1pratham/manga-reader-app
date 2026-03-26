@@ -1,14 +1,22 @@
 package com.example.manhwanest;
 
+import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
+import com.bumptech.glide.load.DataSource;
+
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.LazyHeaders;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.github.chrisbanes.photoview.PhotoView;
 
 import java.util.ArrayList;
@@ -17,6 +25,8 @@ import java.util.List;
 public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder> {
 
     private List<String> images = new ArrayList<>();
+
+    private int PRELOAD_COUNT = 5;
 
     // 🔥 TAP LISTENER
     public interface OnImageTapListener {
@@ -54,11 +64,58 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
                         .build()
         );
 
+        int total = images.size();
+
+// preload next images
+        for (int i = 1; i <= PRELOAD_COUNT; i++) {
+            int nextPos = position + i;
+
+            if (nextPos < total) {
+                String nextUrl = images.get(nextPos);
+
+                GlideUrl preloadUrl = new GlideUrl(
+                        nextUrl,
+                        new LazyHeaders.Builder()
+                                .addHeader("Referer", "https://mangapill.com/")
+                                .addHeader("User-Agent", "Mozilla/5.0")
+                                .build()
+                );
+
+                Glide.with(holder.itemView.getContext())
+                        .load(preloadUrl)
+                        .preload();
+            }
+        }
+
+        // ✅ RESET STATE (IMPORTANT)
+        holder.imageView.setImageDrawable(null);
+        holder.loader.setVisibility(View.VISIBLE);
+        holder.imageView.setVisibility(View.INVISIBLE);
+
         Glide.with(holder.itemView.getContext())
                 .load(glideUrl)
+                .listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model,
+                                                Target<Drawable> target, boolean isFirstResource) {
+                        holder.loader.setVisibility(View.GONE);
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(Drawable resource, Object model,
+                                                   Target<Drawable> target,
+                                                   DataSource dataSource,
+                                                   boolean isFirstResource) {
+
+                        holder.loader.setVisibility(View.GONE);
+                        holder.imageView.setVisibility(View.VISIBLE);
+                        return false;
+                    }
+                })
                 .into(holder.imageView);
 
-        // 🔥 TAP HANDLING (THIS FIXES EVERYTHING)
+        // 🔥 TAP HANDLING
         holder.imageView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onImageTap();
@@ -74,10 +131,12 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
     static class ViewHolder extends RecyclerView.ViewHolder {
 
         PhotoView imageView;
+        ProgressBar loader;
 
         public ViewHolder(View itemView) {
             super(itemView);
             imageView = itemView.findViewById(R.id.pageImage);
+            loader = itemView.findViewById(R.id.pageLoader);
         }
     }
 }
