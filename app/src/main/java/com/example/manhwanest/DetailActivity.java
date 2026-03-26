@@ -110,36 +110,6 @@ public class DetailActivity extends AppCompatActivity {
             Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
         }
 
-        AniListApi.fetchMediaListEntry(this, mediaId, new AniListApi.AniListCallback() {
-            @Override
-            public void onSuccess(String status, int progress, int score) {
-                runOnUiThread(() -> {
-
-                    savedStatus = status;
-                    savedProgress = progress;
-                    savedScore = score;
-
-                    // 🔥 update button text
-                    String niceStatus = status.substring(0,1).toUpperCase() + status.substring(1).toLowerCase();
-
-                    listEditorButton.setText(
-                            niceStatus + " (" + savedProgress + "/" +
-                                    (totalChapters == 0 ? "?" : totalChapters) + ")"
-                    );
-                });
-            }
-
-            @Override
-            public void onEmpty() {
-                // not added yet → do nothing
-            }
-
-            @Override
-            public void onFailure(String error) {
-                // optional log
-            }
-        });
-
 
         // Source selector
         sourceSelector.setText("Source: " + selectedSource + " ▼");
@@ -179,7 +149,11 @@ public class DetailActivity extends AppCompatActivity {
                 return;
             }
 
-            int index = Math.max(0, savedProgress - 1);
+            int index = savedProgress;
+
+            if (index >= cachedChapters.size()) {
+                index = cachedChapters.size() - 1;
+            }
 
             Chapter chapter = cachedChapters.get(index);
 
@@ -385,6 +359,32 @@ public class DetailActivity extends AppCompatActivity {
                         totalChapters = media.optInt("chapters", 0);
                         chaptersText.setText("Chapters: " + (totalChapters == 0 ? "?" : totalChapters));
 
+                        // 🔥 FETCH TRACKING AFTER DETAILS (FIX)
+                        AniListApi.fetchMediaListEntry(this, mediaId, new AniListApi.AniListCallback() {
+                            @Override
+                            public void onSuccess(String status, int progress, int score) {
+                                runOnUiThread(() -> {
+
+                                    savedStatus = status;
+                                    savedProgress = progress;
+                                    savedScore = score;
+
+                                    String niceStatus = status.substring(0,1).toUpperCase()
+                                            + status.substring(1).toLowerCase();
+
+                                    listEditorButton.setText(
+                                            niceStatus + " (" + savedProgress + "/" +
+                                                    (totalChapters == 0 ? "?" : totalChapters) + ")"
+                                    );
+
+                                    updateContinueButton();
+                                });
+                            }
+
+                            @Override public void onEmpty() {}
+                            @Override public void onFailure(String error) {}
+                        });
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -502,6 +502,43 @@ public class DetailActivity extends AppCompatActivity {
 
             // 🔥 CLICK LOGIC (your existing)
             btn.setOnClickListener(v -> {
+
+                int chapterNumber;
+
+                try {
+                    chapterNumber = Integer.parseInt(chapter.getNumber());
+                } catch (Exception e) {
+                    chapterNumber = index + 1;
+                }
+
+                // ✅ FIX: set status BEFORE API
+                if (savedStatus.isEmpty()) {
+                    savedStatus = "Reading";
+                }
+
+                savedProgress = chapterNumber;
+
+                updateContinueButton();
+
+                listEditorButton.setText(
+                        savedStatus + " (" + savedProgress + "/" +
+                                (totalChapters == 0 ? "?" : totalChapters) + ")"
+                );
+
+                String token = getSharedPreferences("user", MODE_PRIVATE)
+                        .getString("token", null);
+
+                if (token != null) {
+
+                    String apiStatus = mapStatus(savedStatus);
+
+                    AniListApi.saveToList(token, mediaId, savedProgress, apiStatus,
+                            new AniListApi.ApiCallback() {
+                                @Override public void onSuccess(JSONObject response) {}
+                                @Override public void onError(String error) {}
+                            });
+                }
+
                 Intent intent = new Intent(this, ReaderActivity.class);
 
                 intent.putExtra("chapter_id", chapter.getId());
@@ -565,6 +602,14 @@ public class DetailActivity extends AppCompatActivity {
                 return "REPEATING";
             default:
                 return "PLANNING";
+        }
+    }
+
+    private void updateContinueButton() {
+        if (savedProgress == 0) {
+            continueButton.setText("Start Reading");
+        } else {
+            continueButton.setText("Continue Chapter " + savedProgress);
         }
     }
 }
