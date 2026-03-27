@@ -106,27 +106,47 @@ public class MangaKatanaSource implements Source {
                     List<String> images = new ArrayList<>();
                     String html = doc.html();
 
-                    // 🕵️‍♂️ THE NEW "GREEDY" REGEX
-                    // This looks for any array [...] that contains strings ending in image extensions.
-                    // It doesn't care about the variable name (thzq, ytaw, etc.)
-                    Pattern pattern = Pattern.compile("\\[\\s*['\"]([^'\"]+\\.(?:jpg|png|webp|jpeg)[^'\"]*)['\"](?:\\s*,\\s*['\"]([^'\"]+)['\"])*\\s*\\]", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+                    // 🕵️‍♂️ BULLETPROOF REGEX
+                    // Pattern.DOTALL allows the regex to match arrays that span multiple lines
+                    Pattern pattern = Pattern.compile("var\\s+[a-zA-Z0-9_]+\\s*=\\s*\\[(.*?)\\];", Pattern.DOTALL);
                     Matcher matcher = pattern.matcher(html);
 
-                    if (matcher.find()) {
-                        String fullMatch = matcher.group(0);
-                        // Strip the brackets [ ]
-                        String cleaned = fullMatch.substring(1, fullMatch.length() - 1);
-                        // Split by comma
-                        String[] urls = cleaned.split(",");
-                        for (String u : urls) {
-                            // Strip quotes and whitespace
-                            String cleanUrl = u.replace("'", "").replace("\"", "").trim();
-                            if (!cleanUrl.isEmpty()) {
-                                // Sometimes they use relative URLs; ensure they are absolute
-                                if (cleanUrl.startsWith("//")) cleanUrl = "https:" + cleanUrl;
-                                images.add(cleanUrl);
+                    List<String> largestImageArray = new ArrayList<>();
+
+                    while (matcher.find()) {
+                        String arrayContent = matcher.group(1);
+
+                        // Verify if this array actually contains image links
+                        if (arrayContent.matches(".*\\.(jpg|png|webp|jpeg).*")) {
+                            List<String> tempImages = new ArrayList<>();
+
+                            // Better extraction: Grab everything inside single or double quotes
+                            Pattern urlPattern = Pattern.compile("['\"]([^'\"]+)['\"]");
+                            Matcher urlMatcher = urlPattern.matcher(arrayContent);
+
+                            while (urlMatcher.find()) {
+                                String cleanUrl = urlMatcher.group(1).trim();
+
+                                // Ensure it's an actual image URL and not a random string
+                                if (cleanUrl.matches(".*\\.(jpg|png|webp|jpeg).*")) {
+                                    if (cleanUrl.startsWith("//")) {
+                                        cleanUrl = "https:" + cleanUrl;
+                                    }
+                                    tempImages.add(cleanUrl);
+                                }
+                            }
+
+                            // The actual chapter pages will be the largest array.
+                            // This prevents the app from getting stuck on a 1-image thumbnail array.
+                            if (tempImages.size() > largestImageArray.size()) {
+                                largestImageArray = tempImages;
                             }
                         }
+                    }
+
+                    // Add the winning array to our final images list
+                    if (!largestImageArray.isEmpty()) {
+                        images.addAll(largestImageArray);
                     }
 
                     // 🖼️ FALLBACK: If Regex fails, try the HTML tags directly

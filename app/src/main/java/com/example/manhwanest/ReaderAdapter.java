@@ -27,6 +27,13 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
     private List<String> images = new ArrayList<>();
     private final int PRELOAD_COUNT = 5;
 
+    // 🔥 SOURCE TRACKING (IMPORTANT FIX)
+    private String currentSource = "mangapill";
+
+    public void setSource(String source) {
+        this.currentSource = source;
+    }
+
     public interface OnImageTapListener {
         void onImageTap();
     }
@@ -42,16 +49,17 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
         notifyDataSetChanged();
     }
 
-    // 🔥 DYNAMIC HEADER HELPER
-    // This solves the problem of one source blocking another's images!
+    // 🔥 FIXED HEADER LOGIC (NO URL DETECTION)
+    // 🔥 FIXED HEADER LOGIC
     private GlideUrl getGlideUrl(String url) {
         LazyHeaders.Builder headers = new LazyHeaders.Builder()
-                .addHeader("User-Agent", "Mozilla/5.0");
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-        if (url.contains("mangapill")) {
-            headers.addHeader("Referer", "https://mangapill.com/");
-        } else if (url.contains("mangakatana")) {
+        // 🔥 FIX: Use equalsIgnoreCase to prevent "MangaKatana" != "mangakatana" bugs
+        if ("mangakatana".equalsIgnoreCase(currentSource)) {
             headers.addHeader("Referer", "https://mangakatana.com/");
+        } else {
+            headers.addHeader("Referer", "https://mangapill.com/");
         }
 
         return new GlideUrl(url, headers.build());
@@ -70,17 +78,19 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
         String imageUrl = images.get(position);
         GlideUrl glideUrl = getGlideUrl(imageUrl);
 
-        // Preload logic using the dynamic headers
+        // 🔥 PRELOAD NEXT IMAGES
         int total = images.size();
         for (int i = 1; i <= PRELOAD_COUNT; i++) {
             int nextPos = position + i;
             if (nextPos < total) {
                 GlideUrl preloadUrl = getGlideUrl(images.get(nextPos));
-                Glide.with(holder.itemView.getContext()).load(preloadUrl).preload();
+                Glide.with(holder.itemView.getContext())
+                        .load(preloadUrl)
+                        .preload();
             }
         }
 
-        // Reset state for recycled views
+        // RESET VIEW (IMPORTANT FOR RECYCLING)
         holder.imageView.setImageDrawable(null);
         holder.loader.setVisibility(View.VISIBLE);
         holder.imageView.setVisibility(View.INVISIBLE);

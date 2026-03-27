@@ -115,6 +115,12 @@ public class ReaderActivity extends AppCompatActivity {
         layoutManager = new LinearLayoutManager(this);
         rvReader.setLayoutManager(layoutManager);
         adapter = new ReaderAdapter();
+
+        // 🔥 FIX: Pass the source name to the adapter so it uses the correct headers
+        if (sourceName != null) {
+            adapter.setSource(sourceName);
+        }
+
         rvReader.setAdapter(adapter);
     }
 
