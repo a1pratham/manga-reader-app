@@ -17,11 +17,11 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 import com.example.manhwanest.sources.Chapter;
+import com.example.manhwanest.sources.MangaKatanaSource; // 🔥 Using the stable Katana source
 import com.example.manhwanest.sources.MangaPillSource;
 import com.example.manhwanest.sources.Source;
 
@@ -71,7 +71,7 @@ public class DetailActivity extends AppCompatActivity {
             Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
         }
 
-        switchTab(true); // Default to info tab
+        switchTab(true);
     }
 
     @Override
@@ -81,8 +81,6 @@ public class DetailActivity extends AppCompatActivity {
             fetchTrackingData();
         }
     }
-
-    // --- SETUP & UI METHODS ---
 
     private void bindViews() {
         bannerImage = findViewById(R.id.bannerImage);
@@ -153,8 +151,6 @@ public class DetailActivity extends AppCompatActivity {
         }
     }
 
-    // --- API & DATA FETCHING ---
-
     private void fetchAnimeDetails(int id) {
         String url = "https://graphql.anilist.co";
         String query = "{ Media(id: " + id + ", type: MANGA) { title { english userPreferred } description bannerImage coverImage { large } genres averageScore status chapters } }";
@@ -221,7 +217,6 @@ public class DetailActivity extends AppCompatActivity {
         savedProgress = progress;
         savedScore = score;
         currentStatus = savedStatus;
-
         updateTrackingUI();
     }
 
@@ -229,8 +224,6 @@ public class DetailActivity extends AppCompatActivity {
         listEditorButton.setText(savedStatus + " (" + savedProgress + "/" + (totalChapters == 0 ? "?" : totalChapters) + ")");
         continueButton.setText(savedProgress == 0 ? "Start Reading" : "Continue Chapter " + savedProgress);
     }
-
-    // --- CHAPTER LOGIC ---
 
     private void loadChaptersFromSource() {
         if (TextUtils.isEmpty(currentTitle)) {
@@ -248,7 +241,13 @@ public class DetailActivity extends AppCompatActivity {
 
         showLoader();
 
-        Source source = selectedSource.equals("MangaPill") ? new MangaPillSource() : null;
+        Source source = null;
+        if (selectedSource.equals("MangaPill")) {
+            source = new MangaPillSource();
+        } else if (selectedSource.equals("MangaKatana")) {
+            source = new MangaKatanaSource();
+        }
+
         if (source == null) {
             Toast.makeText(this, "Source not implemented yet", Toast.LENGTH_SHORT).show();
             hideLoader();
@@ -311,7 +310,6 @@ public class DetailActivity extends AppCompatActivity {
 
         if (savedStatus.isEmpty()) savedStatus = "Reading";
 
-// Apply safeguard so AniList doesn't auto-complete when tapping the final chapter
         if (savedStatus.equals("Reading") && totalChapters > 0 && chapterNumber >= totalChapters) {
             savedProgress = totalChapters - 1;
         } else {
@@ -319,7 +317,6 @@ public class DetailActivity extends AppCompatActivity {
         }
 
         updateTrackingUI();
-
         saveListProgressToApi();
 
         Intent intent = new Intent(this, ReaderActivity.class);
@@ -329,6 +326,7 @@ public class DetailActivity extends AppCompatActivity {
         intent.putExtra("chapter_index", index);
         intent.putExtra("chapter_list", new ArrayList<>(cachedChapters));
         intent.putExtra("total_chapters", totalChapters);
+        intent.putExtra("source_name", selectedSource); // 🔥 Passing source name
         startActivity(intent);
     }
 
@@ -339,29 +337,21 @@ public class DetailActivity extends AppCompatActivity {
         }
 
         int targetIndex = -1;
-
-        // 🔥 THE FIX: Search the list for the exact chapter number
         for (int i = 0; i < cachedChapters.size(); i++) {
             int currentChapNum = safeParseInt(cachedChapters.get(i).getNumber(), i + 1);
-
-            // If we find the chapter number that matches our progress, grab its index!
             if (currentChapNum == savedProgress) {
                 targetIndex = i;
                 break;
             }
         }
 
-        // Fallback: If we couldn't find an exact match, fall back to the old math logic
         if (targetIndex == -1) {
             targetIndex = savedProgress > 0 ? savedProgress - 1 : 0;
         }
 
-        // Ensure we don't crash if out of bounds
         int finalIndex = Math.min(Math.max(0, targetIndex), cachedChapters.size() - 1);
         openReader(cachedChapters.get(finalIndex), finalIndex);
     }
-
-    // --- LIST EDITOR & SYNC ---
 
     private void showListEditor() {
         ListEditorBottomSheet sheet = new ListEditorBottomSheet();
@@ -398,7 +388,6 @@ public class DetailActivity extends AppCompatActivity {
 
         AniListApi.saveToList(DetailActivity.this, token, mediaId, savedProgress, mapStatusToApi(savedStatus), new AniListApi.ApiCallback() {
             @Override public void onSuccess(JSONObject response) {
-                // You can actually remove runOnUiThread now since Volley handles it automatically!
                 Toast.makeText(DetailActivity.this, "Saved ✅", Toast.LENGTH_SHORT).show();
             }
             @Override public void onError(String error) {
@@ -407,10 +396,8 @@ public class DetailActivity extends AppCompatActivity {
         });
     }
 
-    // --- UTILITIES ---
-
     private void showSourceDialog() {
-        String[] sources = {"MangaPill", "MGecko"};
+        String[] sources = {"MangaPill", "MangaKatana"}; // 🔥 Swapping experimental for stable Katana
         new AlertDialog.Builder(this)
                 .setTitle("Select Source")
                 .setItems(sources, (dialog, which) -> {
@@ -442,8 +429,14 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private int safeParseInt(String val, int defaultVal) {
-        try { return TextUtils.isEmpty(val) ? defaultVal : Integer.parseInt(val); }
-        catch (NumberFormatException e) { return defaultVal; }
+        try {
+            if (TextUtils.isEmpty(val)) return defaultVal;
+            String cleaned = val.replaceAll("[^0-9.]", "");
+            if (cleaned.isEmpty()) return defaultVal;
+            return (int) Float.parseFloat(cleaned);
+        } catch (Exception e) {
+            return defaultVal;
+        }
     }
 
     private String mapStatusToApi(String uiStatus) {

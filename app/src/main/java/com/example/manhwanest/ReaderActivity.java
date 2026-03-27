@@ -7,11 +7,13 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.manhwanest.sources.Chapter;
+import com.example.manhwanest.sources.MangaKatanaSource; // 🔥 Import updated
 import com.example.manhwanest.sources.MangaPillSource;
 import com.example.manhwanest.sources.Source;
 
@@ -22,51 +24,62 @@ import java.util.List;
 
 public class ReaderActivity extends AppCompatActivity {
 
-    // UI Components
     private RecyclerView rvReader;
     private SeekBar pageSlider;
     private ImageView backBtn;
     private TextView prevBtn, nextBtn, chapterTitle, pageIndicator;
     private View topBar, bottomBar;
 
-    // Adapters & Layout
     private ReaderAdapter adapter;
     private LinearLayoutManager layoutManager;
 
-    // State & Data
     private ArrayList<Chapter> chapterList;
     private int currentIndex;
     private int mediaId = -1;
     private int totalChapters = 0;
     private String currentChapterId;
+    private String sourceName;
 
     private int lastSavedPage = -1;
     private boolean chapterMarked = false;
     private boolean isUiVisible = true;
 
-    private Source mangaSource; // 🔥 NEW: Source instance
+    private Source mangaSource;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_reader);
 
-        mangaSource = new MangaPillSource(); // Initialize Source
-
         bindViews();
         loadIntentData();
         setupRecyclerView();
         setupListeners();
 
-        // 🔥 NEW: Fetch images instead of loading WebView
+        // 🔥 Updated routing logic
+        if ("MangaKatana".equals(sourceName)) {
+            mangaSource = new MangaKatanaSource();
+        } else {
+            mangaSource = new MangaPillSource();
+        }
+
         if (currentChapterId != null) {
             fetchImagesDirectly(currentChapterId);
         }
+
+        // 🔥 MODERN BACK BUTTON HANDLER
+        // This fixes the warning you saw in Android Studio
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                onChapterFinished();
+                finish();
+            }
+        });
     }
 
     private void bindViews() {
         rvReader = findViewById(R.id.readerRecyclerView);
-        // webView is completely gone! 🚀
         pageIndicator = findViewById(R.id.pageIndicator);
         pageSlider = findViewById(R.id.pageSlider);
         backBtn = findViewById(R.id.backBtn);
@@ -80,6 +93,7 @@ public class ReaderActivity extends AppCompatActivity {
     private void loadIntentData() {
         currentChapterId = getIntent().getStringExtra("chapter_id");
         String chapterNumber = getIntent().getStringExtra("chapter_number");
+        sourceName = getIntent().getStringExtra("source_name");
 
         chapterList = (ArrayList<Chapter>) getIntent().getSerializableExtra("chapter_list");
         currentIndex = getIntent().getIntExtra("chapter_index", 0);
@@ -105,7 +119,10 @@ public class ReaderActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
-        backBtn.setOnClickListener(v -> finish());
+        backBtn.setOnClickListener(v -> {
+            onChapterFinished();
+            finish();
+        });
         prevBtn.setOnClickListener(v -> changeChapter(false));
         nextBtn.setOnClickListener(v -> changeChapter(true));
 
@@ -155,22 +172,19 @@ public class ReaderActivity extends AppCompatActivity {
         currentChapterId = chapter.getId();
 
         chapterTitle.setText("Chapter " + chapter.getNumber());
-        adapter.setImages(new ArrayList<>()); // Clear old images
+        adapter.setImages(new ArrayList<>());
 
         pageIndicator.setText("0 / 0");
         pageSlider.setProgress(0);
         rvReader.scrollToPosition(0);
 
-        // 🔥 NEW: Trigger the direct scrape
         fetchImagesDirectly(currentChapterId);
     }
 
-    // 🔥 NEW METHOD: The heart of the new fast flow
     private void fetchImagesDirectly(String url) {
         mangaSource.getImages(url, new Source.ImageCallback() {
             @Override
             public void onSuccess(List<String> images) {
-                // Must update UI on Main Thread
                 runOnUiThread(() -> {
                     adapter.setImages(images);
                     int savedPage = getSharedPreferences("reader_progress", MODE_PRIVATE).getInt(currentChapterId, 0);
@@ -179,7 +193,6 @@ public class ReaderActivity extends AppCompatActivity {
                     pageSlider.setProgress(savedPage);
                     pageIndicator.setText((savedPage + 1) + " / " + images.size());
 
-                    // Wait for RecyclerView to draw, then scroll to saved page
                     rvReader.post(() -> {
                         layoutManager.scrollToPositionWithOffset(savedPage, 0);
                     });
@@ -228,8 +241,10 @@ public class ReaderActivity extends AppCompatActivity {
 
         int safeProgress;
         try {
-            safeProgress = Integer.parseInt(currentChapter.getNumber());
-        } catch (NumberFormatException e) {
+            // Clean chapter number for AniList
+            String cleanNum = currentChapter.getNumber().replaceAll("[^0-9.]", "");
+            safeProgress = (int) Float.parseFloat(cleanNum);
+        } catch (Exception e) {
             safeProgress = currentIndex + 1;
         }
 
@@ -287,12 +302,6 @@ public class ReaderActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         hideSystemUI();
-    }
-
-    @Override
-    public void onBackPressed() {
-        onChapterFinished();
-        super.onBackPressed();
     }
 
     @Override

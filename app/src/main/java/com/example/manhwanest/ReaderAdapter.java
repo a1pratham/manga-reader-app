@@ -6,12 +6,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
-import com.bumptech.glide.load.DataSource;
-
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.LazyHeaders;
@@ -25,10 +25,8 @@ import java.util.List;
 public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder> {
 
     private List<String> images = new ArrayList<>();
+    private final int PRELOAD_COUNT = 5;
 
-    private int PRELOAD_COUNT = 5;
-
-    // 🔥 TAP LISTENER
     public interface OnImageTapListener {
         void onImageTap();
     }
@@ -44,50 +42,45 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
         notifyDataSetChanged();
     }
 
+    // 🔥 DYNAMIC HEADER HELPER
+    // This solves the problem of one source blocking another's images!
+    private GlideUrl getGlideUrl(String url) {
+        LazyHeaders.Builder headers = new LazyHeaders.Builder()
+                .addHeader("User-Agent", "Mozilla/5.0");
+
+        if (url.contains("mangapill")) {
+            headers.addHeader("Referer", "https://mangapill.com/");
+        } else if (url.contains("mangakatana")) {
+            headers.addHeader("Referer", "https://mangakatana.com/");
+        }
+
+        return new GlideUrl(url, headers.build());
+    }
+
+    @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_reader_page, parent, false);
         return new ViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
-
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         String imageUrl = images.get(position);
+        GlideUrl glideUrl = getGlideUrl(imageUrl);
 
-        GlideUrl glideUrl = new GlideUrl(
-                imageUrl,
-                new LazyHeaders.Builder()
-                        .addHeader("Referer", "https://mangapill.com/")
-                        .addHeader("User-Agent", "Mozilla/5.0")
-                        .build()
-        );
-
+        // Preload logic using the dynamic headers
         int total = images.size();
-
-// preload next images
         for (int i = 1; i <= PRELOAD_COUNT; i++) {
             int nextPos = position + i;
-
             if (nextPos < total) {
-                String nextUrl = images.get(nextPos);
-
-                GlideUrl preloadUrl = new GlideUrl(
-                        nextUrl,
-                        new LazyHeaders.Builder()
-                                .addHeader("Referer", "https://mangapill.com/")
-                                .addHeader("User-Agent", "Mozilla/5.0")
-                                .build()
-                );
-
-                Glide.with(holder.itemView.getContext())
-                        .load(preloadUrl)
-                        .preload();
+                GlideUrl preloadUrl = getGlideUrl(images.get(nextPos));
+                Glide.with(holder.itemView.getContext()).load(preloadUrl).preload();
             }
         }
 
-        // ✅ RESET STATE (IMPORTANT)
+        // Reset state for recycled views
         holder.imageView.setImageDrawable(null);
         holder.loader.setVisibility(View.VISIBLE);
         holder.imageView.setVisibility(View.INVISIBLE);
@@ -104,10 +97,8 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
 
                     @Override
                     public boolean onResourceReady(Drawable resource, Object model,
-                                                   Target<Drawable> target,
-                                                   DataSource dataSource,
+                                                   Target<Drawable> target, DataSource dataSource,
                                                    boolean isFirstResource) {
-
                         holder.loader.setVisibility(View.GONE);
                         holder.imageView.setVisibility(View.VISIBLE);
                         return false;
@@ -115,7 +106,6 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
                 })
                 .into(holder.imageView);
 
-        // 🔥 TAP HANDLING
         holder.imageView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onImageTap();
@@ -129,7 +119,6 @@ public class ReaderAdapter extends RecyclerView.Adapter<ReaderAdapter.ViewHolder
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-
         PhotoView imageView;
         ProgressBar loader;
 

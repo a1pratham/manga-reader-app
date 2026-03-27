@@ -20,7 +20,6 @@ public class MangaDexSource implements Source {
 
     private static final String BASE_API = "https://api.mangadex.org";
 
-    // 🔥 HELPER METHOD: Improved with Error Code Tracking
     private String fetchJson(String urlString) throws Exception {
         URL url = new URL(urlString);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -47,18 +46,25 @@ public class MangaDexSource implements Source {
     @Override
     public void getChapters(String title, ChapterCallback callback) {
         new AsyncTask<Void, Void, List<Chapter>>() {
+            String errorMessage = "Failed to fetch from MangaDex.";
+
             @Override
             protected List<Chapter> doInBackground(Void... voids) {
                 try {
+                    // STEP 1: Search
                     String searchUrl = BASE_API + "/manga?title=" + URLEncoder.encode(title, "UTF-8") + "&limit=1";
                     String searchResponse = fetchJson(searchUrl);
                     JSONObject searchJson = new JSONObject(searchResponse);
                     JSONArray searchData = searchJson.getJSONArray("data");
 
-                    if (searchData.length() == 0) return new ArrayList<>();
+                    if (searchData.length() == 0) {
+                        errorMessage = "Manga not found on MangaDex.";
+                        return null;
+                    }
 
                     String mangaId = searchData.getJSONObject(0).getString("id");
 
+                    // STEP 2: Fetch Chapters
                     String feedUrl = BASE_API + "/manga/" + mangaId + "/feed?translatedLanguage[]=en&order[chapter]=asc&limit=500";
                     String feedResponse = fetchJson(feedUrl);
                     JSONObject feedJson = new JSONObject(feedResponse);
@@ -73,9 +79,10 @@ public class MangaDexSource implements Source {
                         JSONObject attributes = chapterObj.getJSONObject("attributes");
                         String chapterNum = attributes.optString("chapter", "");
 
-                        // 🔥 THE FIX: Skip chapters hosted externally or with 0 pages
+                        // Skip External URLs to prevent crashes
                         if (attributes.has("externalUrl") && !attributes.isNull("externalUrl")) continue;
-                        if (attributes.has("pages") && attributes.optInt("pages", 0) == 0) continue;
+
+                        // WE REMOVED THE "ZERO PAGES" FILTER HERE! 🚀
 
                         if (TextUtils.isEmpty(chapterNum) || chapterNum.equals("null")) continue;
 
@@ -84,10 +91,16 @@ public class MangaDexSource implements Source {
                         }
                     }
 
+                    if (uniqueChapters.isEmpty()) {
+                        errorMessage = "No readable English chapters found. (Might be licensed/external only)";
+                        return null;
+                    }
+
                     return new ArrayList<>(uniqueChapters.values());
 
                 } catch (Exception e) {
                     e.printStackTrace();
+                    errorMessage = "Error: " + e.getMessage();
                     return null;
                 }
             }
@@ -97,55 +110,14 @@ public class MangaDexSource implements Source {
                 if (chapters != null) {
                     callback.onSuccess(chapters);
                 } else {
-                    callback.onError("Failed to fetch chapters from MangaDex.");
+                    callback.onError(errorMessage);
                 }
             }
         }.execute();
     }
 
     @Override
-    public void getImages(String chapterId, ImageCallback callback) {
-        new AsyncTask<Void, Void, List<String>>() {
-            String errorMessage = "Failed to load MangaDex images.";
-
-            @Override
-            protected List<String> doInBackground(Void... voids) {
-                try {
-                    String serverUrl = BASE_API + "/at-home/server/" + chapterId;
-                    String response = fetchJson(serverUrl);
-
-                    JSONObject json = new JSONObject(response);
-                    String baseUrl = json.getString("baseUrl");
-
-                    JSONObject chapterData = json.getJSONObject("chapter");
-                    String hash = chapterData.getString("hash");
-                    JSONArray dataArray = chapterData.getJSONArray("data");
-
-                    List<String> imageUrls = new ArrayList<>();
-
-                    for (int i = 0; i < dataArray.length(); i++) {
-                        String filename = dataArray.getString(i);
-                        String fullUrl = baseUrl + "/data/" + hash + "/" + filename;
-                        imageUrls.add(fullUrl);
-                    }
-
-                    return imageUrls;
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    errorMessage = "Error: " + e.getMessage(); // Capture exact error
-                    return null;
-                }
-            }
-
-            @Override
-            protected void onPostExecute(List<String> images) {
-                if (images != null && !images.isEmpty()) {
-                    callback.onSuccess(images);
-                } else {
-                    callback.onError(errorMessage);
-                }
-            }
-        }.execute();
+    public void getImages(String chapterUrl, ImageCallback callback) {
+        // Empty for now!
     }
 }
