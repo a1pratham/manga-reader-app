@@ -2,21 +2,18 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#000">
+    android:background="#000000"> <com.github.chrisbanes.photoview.PhotoView
+    android:id="@+id/pageImage"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:adjustViewBounds="true" />
 
-    <!-- 📖 IMAGE -->
-    <com.github.chrisbanes.photoview.PhotoView
-        android:id="@+id/pageImage"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:adjustViewBounds="true" />
-
-    <!-- 🔄 LOADER -->
     <ProgressBar
         android:id="@+id/pageLoader"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_gravity="center"
+        android:indeterminateTint="#FF3366"
         android:visibility="visible" />
 
 </FrameLayout>

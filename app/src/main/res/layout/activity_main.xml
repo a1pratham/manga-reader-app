@@ -2,111 +2,115 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
-    android:background="#121212"
+    android:background="#0B0D14"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="12dp">
+    android:padding="16dp"> <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_marginTop="24dp"
+    android:gravity="center_vertical">
 
-    <!-- 🔍 SEARCH BAR -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="24dp"
-        android:gravity="center_vertical">
+    <EditText
+        android:id="@+id/searchBar"
+        android:layout_width="0dp"
+        android:layout_height="52dp"
+        android:layout_weight="1"
+        android:hint="Search manga, authors..."
+        android:textSize="15sp"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="#E2E2E9"
+        android:textColorHint="#6B6E7D"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:background="@drawable/search_bg"
+        android:focusable="false"
+        android:clickable="true"
+        android:cursorVisible="false"
+        android:elevation="2dp"/>
 
-        <EditText
-            android:id="@+id/searchBar"
-            android:layout_width="0dp"
-            android:layout_height="50dp"
-            android:layout_weight="1"
-            android:hint="SEARCH"
-            android:textColor="#fff"
-            android:textColorHint="#aaa"
-            android:padding="12dp"
-            android:background="@drawable/search_bg"
-            android:focusable="false"
-            android:clickable="true"
-            android:cursorVisible="false"/>
+    <ImageView
+        android:id="@+id/profileIcon"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginStart="16dp"
+        android:background="@drawable/circle_bg"
+        android:padding="12dp"
+        android:src="@drawable/ic_launcher_foreground"
+        android:elevation="2dp"
+        android:contentDescription="Profile"/>
 
-        <ImageView
-            android:id="@+id/profileIcon"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:layout_marginStart="12dp"
-            android:background="@drawable/circle_bg"
-            android:padding="10dp"
-            android:src="@drawable/ic_launcher_foreground"/>
+</LinearLayout>
 
-    </LinearLayout>
-
-    <!-- 📜 SCROLL CONTENT -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:scrollbars="none"
         android:fillViewport="true">
 
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:paddingTop="24dp">
 
-            <!-- CONTINUE -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="CONTINUE READING"
-                android:textColor="#fff"
-                android:textSize="16sp"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="6dp"/>
+                android:text="Continue Reading"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="-0.02"
+                android:layout_marginBottom="12dp"/>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvContinue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                android:minHeight="200dp"/>
+                android:minHeight="180dp"/>
 
-            <!-- TRENDING -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="TRENDING"
-                android:textColor="#fff"
-                android:textSize="16sp"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="6dp"/>
+                android:text="Trending Now"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="-0.02"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="12dp"/>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvRecent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                android:minHeight="200dp"/>
+                android:minHeight="180dp"/>
 
-            <!-- POPULAR -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="POPULAR"
-                android:textColor="#fff"
-                android:textSize="16sp"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="6dp"/>
+                android:text="Popular Series"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="-0.02"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="12dp"/>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvPopular"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                android:minHeight="200dp"/>
+                android:minHeight="180dp"
+                android:layout_marginBottom="32dp"/>
 
         </LinearLayout>
 
-
     </ScrollView>
-
-
 
 </LinearLayout>
