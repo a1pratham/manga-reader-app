@@ -5,6 +5,7 @@ import android.widget.Button;
 import android.widget.Toast;
 import android.net.Uri;
 import android.content.Intent;
+import android.content.SharedPreferences;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -61,17 +62,16 @@ public class MainActivity extends AppCompatActivity {
             String fragment = uri.getFragment();
 
             if (fragment != null) {
-
                 String[] parts = fragment.split("&");
 
                 for (String part : parts) {
                     if (part.startsWith("access_token=")) {
-
                         String token = part.replace("access_token=", "");
-
                         saveToken(token);
-
                         Toast.makeText(this, "Login Success 🔥", Toast.LENGTH_SHORT).show();
+
+                        // 🔥 Refresh data immediately so the Continue Reading list appears!
+                        loadHomeData();
                     }
                 }
             }
@@ -108,9 +108,7 @@ public class MainActivity extends AppCompatActivity {
             public void onSuccess(JSONObject response) {
                 recentAdapter.setData(parseResponse(response));
             }
-
-            @Override
-            public void onError(String error) { }
+            @Override public void onError(String error) { }
         });
 
         // 🔥 ALL TIME POPULAR
@@ -119,15 +117,32 @@ public class MainActivity extends AppCompatActivity {
             public void onSuccess(JSONObject response) {
                 popularAdapter.setData(parseResponse(response));
             }
-
-            @Override
-            public void onError(String error) { }
+            @Override public void onError(String error) { }
         });
 
-        // 🟣 CONTINUE READING (dummy)
-        continueAdapter.setData(getDummyContinue());
+        // 🟣 REAL CONTINUE READING DATA
+        SharedPreferences prefs = getSharedPreferences("user", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
+
+        if (token != null) {
+            AniListApi.fetchContinueReading(this, new AniListApi.ApiCallback() {
+                @Override
+                public void onSuccess(JSONObject response) {
+                    List<Manga> activeList = parseContinueReadingResponse(response);
+                    continueAdapter.setData(activeList);
+                }
+                @Override
+                public void onError(String error) {
+                    // Fail silently or show a small error if needed
+                }
+            });
+        } else {
+            // Empty the list if not logged in
+            continueAdapter.setData(new ArrayList<>());
+        }
     }
 
+    // 🔥 PARSER FOR TRENDING / POPULAR
     private List<Manga> parseResponse(JSONObject response) {
         List<Manga> list = new ArrayList<>();
 
@@ -143,21 +158,16 @@ public class MainActivity extends AppCompatActivity {
                 int id = item.getInt("id");
 
                 JSONObject titleObj = item.getJSONObject("title");
-
                 String title = titleObj.optString("english");
 
                 if (title == null || title.equals("null") || title.isEmpty()) {
                     title = titleObj.optString("userPreferred");
                 }
-
                 if (title == null || title.equals("null") || title.isEmpty()) {
                     title = titleObj.optString("romaji");
                 }
 
-                String image = item
-                        .getJSONObject("coverImage")
-                        .getString("large");
-
+                String image = item.getJSONObject("coverImage").getString("large");
                 String desc = item.optString("description", "No description");
 
                 list.add(new Manga(id, title, image, desc));
@@ -170,22 +180,45 @@ public class MainActivity extends AppCompatActivity {
         return list;
     }
 
-    private List<Manga> getDummyContinue() {
+    // 🔥 NEW: PARSER EXCLUSIVELY FOR USER'S READING LIST
+    private List<Manga> parseContinueReadingResponse(JSONObject response) {
         List<Manga> list = new ArrayList<>();
 
-        list.add(new Manga(
-                1,
-                "Solo Leveling",
-                "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx113138.jpg",
-                "Continue reading..."
-        ));
+        try {
+            JSONArray listsArray = response
+                    .getJSONObject("data")
+                    .getJSONObject("MediaListCollection")
+                    .getJSONArray("lists");
 
-        list.add(new Manga(
-                2,
-                "One Piece",
-                "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013.jpg",
-                "Continue reading..."
-        ));
+            // If the user is reading at least one thing, listsArray will have length > 0
+            if (listsArray.length() > 0) {
+                JSONArray entries = listsArray.getJSONObject(0).getJSONArray("entries");
+
+                for (int i = 0; i < entries.length(); i++) {
+                    JSONObject media = entries.getJSONObject(i).getJSONObject("media");
+
+                    int id = media.getInt("id");
+
+                    JSONObject titleObj = media.getJSONObject("title");
+                    String title = titleObj.optString("english");
+
+                    if (title == null || title.equals("null") || title.isEmpty()) {
+                        title = titleObj.optString("userPreferred");
+                    }
+                    if (title == null || title.equals("null") || title.isEmpty()) {
+                        title = titleObj.optString("romaji");
+                    }
+
+                    String image = media.getJSONObject("coverImage").getString("large");
+                    String desc = media.optString("description", "No description");
+
+                    list.add(new Manga(id, title, image, desc));
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         return list;
     }

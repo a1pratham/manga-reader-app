@@ -4,15 +4,15 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.Html;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ProgressBar;
-
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -21,45 +21,35 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
+import com.example.manhwanest.sources.Chapter;
+import com.example.manhwanest.sources.MangaPillSource;
+import com.example.manhwanest.sources.Source;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.util.ArrayList;
-
-import com.example.manhwanest.sources.Source;
-import com.example.manhwanest.sources.Chapter;
-import com.example.manhwanest.sources.MangaPillSource;
-
 import java.util.List;
 
 public class DetailActivity extends AppCompatActivity {
 
     ImageView bannerImage, coverImage;
     TextView titleText, descriptionText, statusText, ratingText, genresText, chaptersText;
-
-    Button listEditorButton;
+    Button listEditorButton, infoTab, readTab, continueButton, sourceSelector, prevBtn, nextBtn;
     ProgressBar chapterLoader;
-    Button infoTab, readTab, continueButton;
-
-    int mediaId = -1;
     View loaderOverlay;
-
-    Button sourceSelector;
-    String selectedSource = "MangaPill";
-
     LinearLayout infoLayout, readLayout;
     GridLayout chaptersGrid;
 
+    int mediaId = -1;
+    String selectedSource = "MangaPill";
     int totalChapters = 0;
-
     String currentTitle = "";
     String currentStatus = "Add to List";
 
     int currentStart = 1;
     int rangeSize = 100;
     List<Chapter> cachedChapters = null;
-
-    Button prevBtn, nextBtn;
 
     int savedProgress = 0;
     int savedScore = 0;
@@ -70,7 +60,31 @@ public class DetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
 
-        // UI Bind
+        bindViews();
+        setupClickListeners();
+
+        mediaId = getIntent().getIntExtra("id", -1);
+
+        if (mediaId != -1) {
+            fetchAnimeDetails(mediaId);
+        } else {
+            Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
+        }
+
+        switchTab(true); // Default to info tab
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mediaId != -1) {
+            fetchTrackingData();
+        }
+    }
+
+    // --- SETUP & UI METHODS ---
+
+    private void bindViews() {
         bannerImage = findViewById(R.id.bannerImage);
         coverImage = findViewById(R.id.coverImage);
         titleText = findViewById(R.id.titleText);
@@ -81,183 +95,27 @@ public class DetailActivity extends AppCompatActivity {
         chaptersText = findViewById(R.id.chaptersText);
         chapterLoader = findViewById(R.id.chapterLoader);
         loaderOverlay = findViewById(R.id.loaderOverlay);
-
         listEditorButton = findViewById(R.id.listEditorButton);
         infoTab = findViewById(R.id.infoTab);
         readTab = findViewById(R.id.readTab);
-
         infoLayout = findViewById(R.id.infoLayout);
         readLayout = findViewById(R.id.readLayout);
-
         continueButton = findViewById(R.id.continueButton);
         chaptersGrid = findViewById(R.id.chaptersGrid);
-
         sourceSelector = findViewById(R.id.sourceSelector);
-
         prevBtn = findViewById(R.id.prevBtn);
         nextBtn = findViewById(R.id.nextBtn);
 
         listEditorButton.setText(currentStatus);
-        infoLayout.setVisibility(View.VISIBLE);
-        readLayout.setVisibility(View.GONE);
-
-        mediaId = getIntent().getIntExtra("id", -1);
-        int animeId = mediaId;
-
-        if (animeId != -1) {
-            fetchAnimeDetails(animeId);
-        } else {
-            Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
-        }
-
-
-        // Source selector
         sourceSelector.setText("Source: " + selectedSource + " ▼");
+    }
+
+    private void setupClickListeners() {
         sourceSelector.setOnClickListener(v -> showSourceDialog());
-
-        // Tabs
-        infoTab.setOnClickListener(v -> {
-            infoLayout.setVisibility(View.VISIBLE);
-            readLayout.setVisibility(View.GONE);
-
-            infoTab.setBackgroundResource(R.drawable.pink_pill);
-            readTab.setBackgroundResource(R.drawable.pill_bg);
-
-            infoTab.setTextColor(getResources().getColor(android.R.color.white));
-            readTab.setTextColor(getResources().getColor(android.R.color.darker_gray));
-        });
-
-        readTab.setOnClickListener(v -> {
-            infoLayout.setVisibility(View.GONE);
-            readLayout.setVisibility(View.VISIBLE);
-
-            readTab.setBackgroundResource(R.drawable.pink_pill);
-            infoTab.setBackgroundResource(R.drawable.pill_bg);
-
-            readTab.setTextColor(getResources().getColor(android.R.color.white));
-            infoTab.setTextColor(getResources().getColor(android.R.color.darker_gray));
-
-            currentStart = 1; //    🔥 RESET RANGE
-            cachedChapters = null;
-            loadChaptersFromSource();
-        });
-
-        continueButton.setOnClickListener(v -> {
-
-            if (cachedChapters == null || cachedChapters.isEmpty()) {
-                Toast.makeText(this, "Load chapters first", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            int index = savedProgress;
-
-            if (index >= cachedChapters.size()) {
-                index = cachedChapters.size() - 1;
-            }
-
-            Chapter chapter = cachedChapters.get(index);
-
-            Intent intent = new Intent(this, ReaderActivity.class);
-            intent.putExtra("chapter_id", chapter.getId());
-            intent.putExtra("chapter_number", chapter.getNumber());
-            intent.putExtra("chapter_index", index);
-            intent.putExtra("chapter_list", new ArrayList<>(cachedChapters));
-
-            startActivity(intent);
-        });
-
-        // List Editor
-        listEditorButton.setOnClickListener(v -> {
-
-            ListEditorBottomSheet sheet = new ListEditorBottomSheet();
-
-            // ✅ PASS EXISTING DATA (for prefill)
-            Bundle args = new Bundle();
-            args.putString("status", savedStatus.isEmpty() ? currentStatus : savedStatus);
-            args.putInt("progress", savedProgress);
-            args.putInt("score", savedScore);
-            sheet.setArguments(args);
-
-            sheet.setOnSaveListener((status, progress, score) -> {
-
-                currentStatus = status;
-                savedStatus = status;
-
-                String token = getSharedPreferences("user", MODE_PRIVATE)
-                        .getString("token", null);
-
-                if (token == null) {
-                    Toast.makeText(this, "Login required", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                if (mediaId == -1) {
-                    Toast.makeText(this, "Invalid media ID", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                // 🔥 CONVERT PROGRESS
-                int progressInt = 0;
-                try {
-                    if (!progress.isEmpty()) {
-                        progressInt = Integer.parseInt(progress);
-                    }
-                } catch (Exception e) {
-                    progressInt = 0;
-                }
-
-                // 🔥 LIMIT PROGRESS
-                if (totalChapters > 0 && progressInt > totalChapters) {
-                    progressInt = totalChapters;
-                    Toast.makeText(this, "Max chapters reached", Toast.LENGTH_SHORT).show();
-                }
-
-                savedProgress = progressInt;
-
-                // 🔥 SCORE
-                int scoreInt = 0;
-                try {
-                    if (!score.isEmpty()) {
-                        scoreInt = Integer.parseInt(score);
-                    }
-                } catch (Exception e) {
-                    scoreInt = 0;
-                }
-
-                savedScore = scoreInt;
-
-                // 🔥 UPDATE BUTTON UI
-                listEditorButton.setText(
-                        currentStatus + " (" + savedProgress + "/" +
-                                (totalChapters == 0 ? "?" : totalChapters) + ")"
-                );
-
-                // 🔥 MAP STATUS
-                String apiStatus = mapStatus(status);
-
-                // 🔥 API CALL
-                AniListApi.saveToList(token, mediaId, savedProgress, apiStatus,
-                        new AniListApi.ApiCallback() {
-
-                            @Override
-                            public void onSuccess(JSONObject response) {
-                                runOnUiThread(() ->
-                                        Toast.makeText(DetailActivity.this, "Saved ✅", Toast.LENGTH_SHORT).show()
-                                );
-                            }
-
-                            @Override
-                            public void onError(String error) {
-                                runOnUiThread(() ->
-                                        Toast.makeText(DetailActivity.this, "Error ❌", Toast.LENGTH_SHORT).show()
-                                );
-                            }
-                        });
-
-            });
-
-            sheet.show(getSupportFragmentManager(), "ListEditor");
-        });
+        infoTab.setOnClickListener(v -> switchTab(true));
+        readTab.setOnClickListener(v -> switchTab(false));
+        continueButton.setOnClickListener(v -> handleContinueReading());
+        listEditorButton.setOnClickListener(v -> showListEditor());
 
         prevBtn.setOnClickListener(v -> {
             if (currentStart > 1) {
@@ -269,122 +127,46 @@ public class DetailActivity extends AppCompatActivity {
         });
 
         nextBtn.setOnClickListener(v -> {
-            if (cachedChapters != null) {
-
-                // 🔥 check if next page exists
-                if (currentStart + rangeSize <= cachedChapters.size()) {
-                    currentStart += rangeSize;
-                    loadChaptersFromSource();
-                } else {
-                    Toast.makeText(this, "No more chapters", Toast.LENGTH_SHORT).show();
-                }
-
-            } else {
-                // fallback (shouldn't happen normally)
+            if (cachedChapters == null || currentStart + rangeSize <= cachedChapters.size()) {
                 currentStart += rangeSize;
                 loadChaptersFromSource();
+            } else {
+                Toast.makeText(this, "No more chapters", Toast.LENGTH_SHORT).show();
             }
         });
-
-
     }
 
-    // 🔥 FETCH ANILIST DATA
+    private void switchTab(boolean isInfoTab) {
+        infoLayout.setVisibility(isInfoTab ? View.VISIBLE : View.GONE);
+        readLayout.setVisibility(isInfoTab ? View.GONE : View.VISIBLE);
+
+        infoTab.setBackgroundResource(isInfoTab ? R.drawable.pink_pill : R.drawable.pill_bg);
+        infoTab.setTextColor(getResources().getColor(isInfoTab ? android.R.color.white : android.R.color.darker_gray));
+
+        readTab.setBackgroundResource(isInfoTab ? R.drawable.pill_bg : R.drawable.pink_pill);
+        readTab.setTextColor(getResources().getColor(isInfoTab ? android.R.color.darker_gray : android.R.color.white));
+
+        if (!isInfoTab) {
+            currentStart = 1;
+            cachedChapters = null;
+            loadChaptersFromSource();
+        }
+    }
+
+    // --- API & DATA FETCHING ---
+
     private void fetchAnimeDetails(int id) {
-
         String url = "https://graphql.anilist.co";
-
-        String query = "{ Media(id: " + id + ", type: MANGA) { " +
-                "title { english userPreferred } " +
-                "description bannerImage coverImage { large } " +
-                "genres averageScore status chapters } }";
+        String query = "{ Media(id: " + id + ", type: MANGA) { title { english userPreferred } description bannerImage coverImage { large } genres averageScore status chapters } }";
 
         JSONObject jsonBody = new JSONObject();
-        try {
-            jsonBody.put("query", query);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        try { jsonBody.put("query", query); } catch (Exception ignored) {}
 
-        RequestQueue queue = Volley.newRequestQueue(this);
-
-        JsonObjectRequest request = new JsonObjectRequest(
-                Request.Method.POST,
-                url,
-                jsonBody,
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, jsonBody,
                 response -> {
                     try {
-                        JSONObject media = response.getJSONObject("data").getJSONObject("Media");
-
-                        JSONObject titleObj = media.getJSONObject("title");
-                        String title = titleObj.optString("english");
-
-                        if (title == null || title.equals("null") || title.isEmpty()) {
-                            title = titleObj.optString("userPreferred");
-                        }
-
-                        currentTitle = title;
-                        titleText.setText(title);
-
-                        String banner = media.optString("bannerImage");
-                        String cover = media.getJSONObject("coverImage").optString("large");
-
-                        Glide.with(this).load(cover).into(coverImage);
-                        Glide.with(this).load(banner).into(bannerImage);
-
-                        String description = media.optString("description");
-                        if (description != null) {
-                            descriptionText.setText(
-                                    Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY)
-                            );
-                        }
-
-                        JSONArray genresArray = media.getJSONArray("genres");
-                        StringBuilder genres = new StringBuilder();
-
-                        for (int i = 0; i < genresArray.length(); i++) {
-                            genres.append(genresArray.getString(i));
-                            if (i != genresArray.length() - 1) {
-                                genres.append(", ");
-                            }
-                        }
-
-                        genresText.setText("Genres: " + genres);
-
-                        int score = media.optInt("averageScore", 0);
-                        ratingText.setText("⭐ " + (score / 10f));
-
-                        statusText.setText("Status: " + media.optString("status", "Unknown"));
-
-                        totalChapters = media.optInt("chapters", 0);
-                        chaptersText.setText("Chapters: " + (totalChapters == 0 ? "?" : totalChapters));
-
-                        // 🔥 FETCH TRACKING AFTER DETAILS (FIX)
-                        AniListApi.fetchMediaListEntry(this, mediaId, new AniListApi.AniListCallback() {
-                            @Override
-                            public void onSuccess(String status, int progress, int score) {
-                                runOnUiThread(() -> {
-
-                                    savedStatus = status;
-                                    savedProgress = progress;
-                                    savedScore = score;
-
-                                    String niceStatus = status.substring(0,1).toUpperCase()
-                                            + status.substring(1).toLowerCase();
-
-                                    listEditorButton.setText(
-                                            niceStatus + " (" + savedProgress + "/" +
-                                                    (totalChapters == 0 ? "?" : totalChapters) + ")"
-                                    );
-
-                                    updateContinueButton();
-                                });
-                            }
-
-                            @Override public void onEmpty() {}
-                            @Override public void onFailure(String error) {}
-                        });
-
+                        parseMediaResponse(response.getJSONObject("data").getJSONObject("Media"));
+                        fetchTrackingData();
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -392,81 +174,106 @@ public class DetailActivity extends AppCompatActivity {
                 error -> Toast.makeText(this, "Failed to load details", Toast.LENGTH_SHORT).show()
         );
 
-        queue.add(request);
+        Volley.newRequestQueue(this).add(request);
     }
 
+    private void parseMediaResponse(JSONObject media) throws Exception {
+        JSONObject titleObj = media.getJSONObject("title");
+        currentTitle = titleObj.optString("english");
+        if (TextUtils.isEmpty(currentTitle) || currentTitle.equals("null")) {
+            currentTitle = titleObj.optString("userPreferred");
+        }
+        titleText.setText(currentTitle);
+
+        Glide.with(this).load(media.getJSONObject("coverImage").optString("large")).into(coverImage);
+        Glide.with(this).load(media.optString("bannerImage")).into(bannerImage);
+
+        String description = media.optString("description");
+        if (!TextUtils.isEmpty(description)) {
+            descriptionText.setText(Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY));
+        }
+
+        JSONArray genresArray = media.getJSONArray("genres");
+        List<String> genreList = new ArrayList<>();
+        for (int i = 0; i < genresArray.length(); i++) genreList.add(genresArray.getString(i));
+        genresText.setText("Genres: " + TextUtils.join(", ", genreList));
+
+        ratingText.setText("⭐ " + (media.optInt("averageScore", 0) / 10f));
+        statusText.setText("Status: " + media.optString("status", "Unknown"));
+
+        totalChapters = media.optInt("chapters", 0);
+        chaptersText.setText("Chapters: " + (totalChapters == 0 ? "?" : totalChapters));
+    }
+
+    private void fetchTrackingData() {
+        AniListApi.fetchMediaListEntry(this, mediaId, new AniListApi.AniListCallback() {
+            @Override
+            public void onSuccess(String status, int progress, int score) {
+                runOnUiThread(() -> updateTrackingState(status, progress, score));
+            }
+            @Override public void onEmpty() {}
+            @Override public void onFailure(String error) {}
+        });
+    }
+
+    private void updateTrackingState(String apiStatus, int progress, int score) {
+        savedStatus = mapStatusToUi(apiStatus);
+        savedProgress = progress;
+        savedScore = score;
+        currentStatus = savedStatus;
+
+        updateTrackingUI();
+    }
+
+    private void updateTrackingUI() {
+        listEditorButton.setText(savedStatus + " (" + savedProgress + "/" + (totalChapters == 0 ? "?" : totalChapters) + ")");
+        continueButton.setText(savedProgress == 0 ? "Start Reading" : "Continue Chapter " + savedProgress);
+    }
+
+    // --- CHAPTER LOGIC ---
 
     private void loadChaptersFromSource() {
-
-        if (currentTitle == null || currentTitle.isEmpty()) {
+        if (TextUtils.isEmpty(currentTitle)) {
             Toast.makeText(this, "Title not loaded yet", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // ✅ RANGE TEXT
-        String currentRange = currentStart + " - " + (currentStart + rangeSize - 1);
-        String nextRange = (currentStart + rangeSize) + " - " + (currentStart + 2 * rangeSize - 1);
+        updatePaginationUI();
 
-        nextBtn.setText("Next ➡ (" + nextRange + ")");
-        prevBtn.setText("⬅ Prev (" + currentRange + ")");
-
-        // ✅ PREV BUTTON VISIBILITY
-        prevBtn.setVisibility(currentStart <= 1 ? View.INVISIBLE : View.VISIBLE);
-
-        // 🔥 IF ALREADY LOADED → JUST FILTER
         if (cachedChapters != null) {
-            loaderOverlay.setVisibility(View.GONE);
-            chapterLoader.setVisibility(View.GONE);
-
+            hideLoader();
             showFilteredChapters(cachedChapters);
             return;
         }
 
+        showLoader();
 
-        loaderOverlay.setVisibility(View.VISIBLE);
-        chapterLoader.setVisibility(View.VISIBLE);
-        chaptersGrid.removeAllViews();
-
-
-        Source source;
-
-        // 🔥 SOURCE SWITCH
-        switch (selectedSource) {
-
-            case "MangaPill":
-                source = new MangaPillSource();
-                break;
-
-            default:
-                Toast.makeText(this, "Source not implemented yet", Toast.LENGTH_SHORT).show();
-                return;
+        Source source = selectedSource.equals("MangaPill") ? new MangaPillSource() : null;
+        if (source == null) {
+            Toast.makeText(this, "Source not implemented yet", Toast.LENGTH_SHORT).show();
+            hideLoader();
+            return;
         }
 
         source.getChapters(currentTitle, new Source.ChapterCallback() {
             @Override
             public void onSuccess(List<Chapter> chapters) {
                 cachedChapters = chapters;
-
-                loaderOverlay.setVisibility(View.GONE);
-                chapterLoader.setVisibility(View.GONE);
-
+                hideLoader();
                 showFilteredChapters(chapters);
             }
 
             @Override
             public void onError(String error) {
-                loaderOverlay.setVisibility(View.GONE);
-                chapterLoader.setVisibility(View.GONE);
-
+                hideLoader();
                 Toast.makeText(DetailActivity.this, error, Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     private void showFilteredChapters(List<Chapter> chapters) {
-
         chaptersGrid.removeAllViews();
-        chaptersGrid.setColumnCount(4); // 🔥 THIS FIXES YOUR GRID
+        chaptersGrid.setColumnCount(4);
 
         int startIndex = currentStart - 1;
         int endIndex = Math.min(startIndex + rangeSize, chapters.size());
@@ -477,139 +284,187 @@ public class DetailActivity extends AppCompatActivity {
         }
 
         for (int i = startIndex; i < endIndex; i++) {
-
             final int index = i;
-            final List<Chapter> finalChapters = chapters;
-
             Chapter chapter = chapters.get(i);
 
             TextView btn = new TextView(this);
             btn.setText(chapter.getNumber());
             btn.setBackgroundResource(R.drawable.pill_bg);
-
             btn.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
             btn.setTextColor(getResources().getColor(android.R.color.white));
             btn.setPadding(0, 24, 0, 24);
 
-            // 🔥 THIS WAS MISSING (MAIN FIX)
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
             params.width = 0;
             params.height = GridLayout.LayoutParams.WRAP_CONTENT;
             params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
             params.setMargins(8, 8, 8, 8);
-
             btn.setLayoutParams(params);
 
-            // 🔥 CLICK LOGIC (your existing)
-            btn.setOnClickListener(v -> {
-
-                int chapterNumber;
-
-                try {
-                    chapterNumber = Integer.parseInt(chapter.getNumber());
-                } catch (Exception e) {
-                    chapterNumber = index + 1;
-                }
-
-                // ✅ FIX: set status BEFORE API
-                if (savedStatus.isEmpty()) {
-                    savedStatus = "Reading";
-                }
-
-                savedProgress = chapterNumber;
-
-                updateContinueButton();
-
-                listEditorButton.setText(
-                        savedStatus + " (" + savedProgress + "/" +
-                                (totalChapters == 0 ? "?" : totalChapters) + ")"
-                );
-
-                String token = getSharedPreferences("user", MODE_PRIVATE)
-                        .getString("token", null);
-
-                if (token != null) {
-
-                    String apiStatus = mapStatus(savedStatus);
-
-                    AniListApi.saveToList(token, mediaId, savedProgress, apiStatus,
-                            new AniListApi.ApiCallback() {
-                                @Override public void onSuccess(JSONObject response) {}
-                                @Override public void onError(String error) {}
-                            });
-                }
-
-                Intent intent = new Intent(this, ReaderActivity.class);
-
-                intent.putExtra("chapter_id", chapter.getId());
-                intent.putExtra("chapter_number", chapter.getNumber());
-                intent.putExtra("chapter_index", index);
-                intent.putExtra("chapter_list", new ArrayList<>(finalChapters));
-
-                startActivity(intent);
-            });
-
+            btn.setOnClickListener(v -> openReader(chapter, index));
             chaptersGrid.addView(btn);
         }
-
-        Toast.makeText(this,
-                "Showing " + (startIndex + 1) + " - " + endIndex,
-                Toast.LENGTH_SHORT).show();
     }
+
+    private void openReader(Chapter chapter, int index) {
+        int chapterNumber = safeParseInt(chapter.getNumber(), index + 1);
+
+        if (savedStatus.isEmpty()) savedStatus = "Reading";
+
+// Apply safeguard so AniList doesn't auto-complete when tapping the final chapter
+        if (savedStatus.equals("Reading") && totalChapters > 0 && chapterNumber >= totalChapters) {
+            savedProgress = totalChapters - 1;
+        } else {
+            savedProgress = chapterNumber;
+        }
+
+        updateTrackingUI();
+
+        saveListProgressToApi();
+
+        Intent intent = new Intent(this, ReaderActivity.class);
+        intent.putExtra("media_id", mediaId);
+        intent.putExtra("chapter_id", chapter.getId());
+        intent.putExtra("chapter_number", chapter.getNumber());
+        intent.putExtra("chapter_index", index);
+        intent.putExtra("chapter_list", new ArrayList<>(cachedChapters));
+        intent.putExtra("total_chapters", totalChapters);
+        startActivity(intent);
+    }
+
+    private void handleContinueReading() {
+        if (cachedChapters == null || cachedChapters.isEmpty()) {
+            Toast.makeText(this, "Load chapters first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        int targetIndex = -1;
+
+        // 🔥 THE FIX: Search the list for the exact chapter number
+        for (int i = 0; i < cachedChapters.size(); i++) {
+            int currentChapNum = safeParseInt(cachedChapters.get(i).getNumber(), i + 1);
+
+            // If we find the chapter number that matches our progress, grab its index!
+            if (currentChapNum == savedProgress) {
+                targetIndex = i;
+                break;
+            }
+        }
+
+        // Fallback: If we couldn't find an exact match, fall back to the old math logic
+        if (targetIndex == -1) {
+            targetIndex = savedProgress > 0 ? savedProgress - 1 : 0;
+        }
+
+        // Ensure we don't crash if out of bounds
+        int finalIndex = Math.min(Math.max(0, targetIndex), cachedChapters.size() - 1);
+        openReader(cachedChapters.get(finalIndex), finalIndex);
+    }
+
+    // --- LIST EDITOR & SYNC ---
+
+    private void showListEditor() {
+        ListEditorBottomSheet sheet = new ListEditorBottomSheet();
+        Bundle args = new Bundle();
+        args.putString("status", savedStatus.isEmpty() ? currentStatus : savedStatus);
+        args.putInt("progress", savedProgress);
+        args.putInt("score", savedScore);
+        sheet.setArguments(args);
+
+        sheet.setOnSaveListener((status, progress, score) -> {
+            savedStatus = status;
+            savedScore = safeParseInt(score, 0);
+            savedProgress = safeParseInt(progress, 0);
+
+            if (totalChapters > 0 && savedProgress > totalChapters) {
+                savedProgress = totalChapters;
+                Toast.makeText(this, "Max chapters reached", Toast.LENGTH_SHORT).show();
+            }
+
+            if (status.equals("Reading") && totalChapters > 0 && savedProgress >= totalChapters) {
+                savedProgress = totalChapters - 1;
+            }
+
+            updateTrackingUI();
+            saveListProgressToApi();
+        });
+
+        sheet.show(getSupportFragmentManager(), "ListEditor");
+    }
+
+    private void saveListProgressToApi() {
+        String token = getSharedPreferences("user", MODE_PRIVATE).getString("token", null);
+        if (token == null || mediaId == -1) return;
+
+        AniListApi.saveToList(DetailActivity.this, token, mediaId, savedProgress, mapStatusToApi(savedStatus), new AniListApi.ApiCallback() {
+            @Override public void onSuccess(JSONObject response) {
+                // You can actually remove runOnUiThread now since Volley handles it automatically!
+                Toast.makeText(DetailActivity.this, "Saved ✅", Toast.LENGTH_SHORT).show();
+            }
+            @Override public void onError(String error) {
+                Toast.makeText(DetailActivity.this, "Error ❌", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // --- UTILITIES ---
+
     private void showSourceDialog() {
-
-        String[] sources = {
-                "MangaPill",
-                "MGecko"
-        };
-
+        String[] sources = {"MangaPill", "MGecko"};
         new AlertDialog.Builder(this)
                 .setTitle("Select Source")
                 .setItems(sources, (dialog, which) -> {
-
                     selectedSource = sources[which];
-
                     sourceSelector.setText("Source: " + selectedSource + " ▼");
-
-                    Toast.makeText(this,
-                            "Selected: " + selectedSource,
-                            Toast.LENGTH_SHORT).show();
-
-// 🔥 VERY IMPORTANT FIX
-                    cachedChapters = null;   // clear old chapters
-                    currentStart = 1;        // reset pagination
-
-// 🔥 Reload chapters
+                    cachedChapters = null;
+                    currentStart = 1;
                     loadChaptersFromSource();
-                })
-                .show();
+                }).show();
     }
 
-    private String mapStatus(String uiStatus) {
+    private void updatePaginationUI() {
+        String currentRange = currentStart + " - " + (currentStart + rangeSize - 1);
+        String nextRange = (currentStart + rangeSize) + " - " + (currentStart + 2 * rangeSize - 1);
+        nextBtn.setText("Next ➡ (" + nextRange + ")");
+        prevBtn.setText("⬅ Prev (" + currentRange + ")");
+        prevBtn.setVisibility(currentStart <= 1 ? View.INVISIBLE : View.VISIBLE);
+    }
 
+    private void showLoader() {
+        loaderOverlay.setVisibility(View.VISIBLE);
+        chapterLoader.setVisibility(View.VISIBLE);
+        chaptersGrid.removeAllViews();
+    }
+
+    private void hideLoader() {
+        loaderOverlay.setVisibility(View.GONE);
+        chapterLoader.setVisibility(View.GONE);
+    }
+
+    private int safeParseInt(String val, int defaultVal) {
+        try { return TextUtils.isEmpty(val) ? defaultVal : Integer.parseInt(val); }
+        catch (NumberFormatException e) { return defaultVal; }
+    }
+
+    private String mapStatusToApi(String uiStatus) {
         switch (uiStatus) {
-            case "Reading":
-                return "CURRENT";
-            case "Completed":
-                return "COMPLETED";
-            case "Planning":
-                return "PLANNING";
-            case "Dropped":
-                return "DROPPED";
-            case "Paused":
-                return "PAUSED";
-            case "Re-reading":
-                return "REPEATING";
-            default:
-                return "PLANNING";
+            case "Reading": return "CURRENT";
+            case "Completed": return "COMPLETED";
+            case "Dropped": return "DROPPED";
+            case "Paused": return "PAUSED";
+            case "Re-reading": return "REPEATING";
+            default: return "PLANNING";
         }
     }
 
-    private void updateContinueButton() {
-        if (savedProgress == 0) {
-            continueButton.setText("Start Reading");
-        } else {
-            continueButton.setText("Continue Chapter " + savedProgress);
+    private String mapStatusToUi(String apiStatus) {
+        switch (apiStatus) {
+            case "CURRENT": return "Reading";
+            case "COMPLETED": return "Completed";
+            case "DROPPED": return "Dropped";
+            case "PAUSED": return "Paused";
+            case "REPEATING": return "Re-reading";
+            default: return "Planning";
         }
     }
 }

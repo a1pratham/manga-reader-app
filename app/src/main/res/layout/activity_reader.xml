@@ -112,10 +112,5 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
-    <WebView
-        android:id="@+id/webView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone" />
 
 </FrameLayout>

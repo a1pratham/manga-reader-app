@@ -1,232 +1,275 @@
 package com.example.manhwanest;
 
-import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.View;
-import android.webkit.JavascriptInterface;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.ImageView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.SeekBar;
-
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.manhwanest.sources.Chapter;
+import com.example.manhwanest.sources.MangaPillSource;
+import com.example.manhwanest.sources.Source;
+
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ReaderActivity extends AppCompatActivity {
-    SeekBar pageSlider;
 
-    RecyclerView rvReader;
-    ReaderAdapter adapter;
-    WebView webView;
+    // UI Components
+    private RecyclerView rvReader;
+    private SeekBar pageSlider;
+    private ImageView backBtn;
+    private TextView prevBtn, nextBtn, chapterTitle, pageIndicator;
+    private View topBar, bottomBar;
 
-    ImageView backBtn;
-    TextView prevBtn, nextBtn, chapterTitle, pageIndicator;
-    View topBar, bottomBar;
+    // Adapters & Layout
+    private ReaderAdapter adapter;
+    private LinearLayoutManager layoutManager;
 
-    ArrayList<Chapter> chapterList;
-    int currentIndex;
+    // State & Data
+    private ArrayList<Chapter> chapterList;
+    private int currentIndex;
+    private int mediaId = -1;
+    private int totalChapters = 0;
+    private String currentChapterId;
 
-    LinearLayoutManager layoutManager;
+    private int lastSavedPage = -1;
+    private boolean chapterMarked = false;
+    private boolean isUiVisible = true;
 
-    @SuppressLint("SetJavaScriptEnabled")
+    private Source mangaSource; // 🔥 NEW: Source instance
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_reader);
 
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-        );
+        mangaSource = new MangaPillSource(); // Initialize Source
 
-        // Bind views
+        bindViews();
+        loadIntentData();
+        setupRecyclerView();
+        setupListeners();
+
+        // 🔥 NEW: Fetch images instead of loading WebView
+        if (currentChapterId != null) {
+            fetchImagesDirectly(currentChapterId);
+        }
+    }
+
+    private void bindViews() {
         rvReader = findViewById(R.id.readerRecyclerView);
-        webView = findViewById(R.id.webView);
+        // webView is completely gone! 🚀
         pageIndicator = findViewById(R.id.pageIndicator);
         pageSlider = findViewById(R.id.pageSlider);
-
         backBtn = findViewById(R.id.backBtn);
         prevBtn = findViewById(R.id.prevChapterBtn);
         nextBtn = findViewById(R.id.nextChapterBtn);
         chapterTitle = findViewById(R.id.chapterTitle);
         topBar = findViewById(R.id.topBar);
         bottomBar = findViewById(R.id.bottomBar);
+    }
 
-        // Layout
-        layoutManager = new LinearLayoutManager(this);
-        rvReader.setLayoutManager(layoutManager);
-
-        adapter = new ReaderAdapter();
-        rvReader.setAdapter(adapter);
-
-        // 🔥 TAP LISTENER (FINAL FIX)
-        adapter.setOnImageTapListener(() -> {
-            if (topBar.getVisibility() == View.VISIBLE) {
-                hideUI();
-                hideSystemUI();
-            } else {
-                showUI();
-            }
-        });
-
-        prevBtn.setOnClickListener(v -> {
-            if (chapterList != null && currentIndex > 0) {
-
-                currentIndex--;
-
-                Chapter prevChapter = chapterList.get(currentIndex);
-                loadChapter(prevChapter);
-
-            } else {
-                Toast.makeText(this, "First chapter", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        nextBtn.setOnClickListener(v -> {
-            if (chapterList != null && currentIndex < chapterList.size() - 1) {
-
-                currentIndex++;
-
-                Chapter nextChapter = chapterList.get(currentIndex);
-                loadChapter(nextChapter);
-
-            } else {
-                Toast.makeText(this, "Last chapter", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        // DATA
-        String chapterUrl = getIntent().getStringExtra("chapter_id");
+    private void loadIntentData() {
+        currentChapterId = getIntent().getStringExtra("chapter_id");
         String chapterNumber = getIntent().getStringExtra("chapter_number");
 
-        chapterList = (ArrayList<Chapter>)
-                getIntent().getSerializableExtra("chapter_list");
-
+        chapterList = (ArrayList<Chapter>) getIntent().getSerializableExtra("chapter_list");
         currentIndex = getIntent().getIntExtra("chapter_index", 0);
+        mediaId = getIntent().getIntExtra("media_id", -1);
+        totalChapters = getIntent().getIntExtra("total_chapters", 0);
 
-        if (chapterUrl == null) {
+        if (currentChapterId == null) {
             Toast.makeText(this, "No chapter URL", Toast.LENGTH_SHORT).show();
+            finish();
             return;
         }
 
         if (chapterNumber != null) {
             chapterTitle.setText("Chapter " + chapterNumber);
         }
+    }
 
+    private void setupRecyclerView() {
+        layoutManager = new LinearLayoutManager(this);
+        rvReader.setLayoutManager(layoutManager);
+        adapter = new ReaderAdapter();
+        rvReader.setAdapter(adapter);
+    }
+
+    private void setupListeners() {
         backBtn.setOnClickListener(v -> finish());
+        prevBtn.setOnClickListener(v -> changeChapter(false));
+        nextBtn.setOnClickListener(v -> changeChapter(true));
 
-        // 🔥 PAGE TRACKING
+        adapter.setOnImageTapListener(this::toggleUI);
+
         rvReader.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-
-                int currentPage = layoutManager.findFirstVisibleItemPosition() + 1;
-                int totalPages = adapter.getItemCount();
-
-                if (totalPages > 0) {
-                    pageIndicator.setText(currentPage + " / " + totalPages);
-                    pageSlider.setProgress(currentPage - 1);
-                }
-            }
-        });
-
-        // WEBVIEW
-        webView.getSettings().setJavaScriptEnabled(true);
-
-        webView.addJavascriptInterface(new Object() {
-            @JavascriptInterface
-            public void processHTML(String html) {
-                runOnUiThread(() -> extractImages(html));
-            }
-        }, "HTMLOUT");
-
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                webView.loadUrl(
-                        "javascript:window.HTMLOUT.processHTML(document.documentElement.outerHTML);");
+                handleScrollTracking();
             }
         });
 
         pageSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) rvReader.scrollToPosition(progress);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+    }
 
-                if (fromUser) {
-                    rvReader.scrollToPosition(progress);
-                }
+    private void changeChapter(boolean isNext) {
+        if (chapterList == null) return;
+
+        if (isNext) {
+            if (currentIndex < chapterList.size() - 1) {
+                if (!chapterMarked) onChapterFinished();
+                currentIndex++;
+                loadNewChapterState();
+            } else {
+                Toast.makeText(this, "Last chapter", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            if (currentIndex > 0) {
+                currentIndex--;
+                loadNewChapterState();
+            } else {
+                Toast.makeText(this, "First chapter", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void loadNewChapterState() {
+        chapterMarked = false;
+        Chapter chapter = chapterList.get(currentIndex);
+        currentChapterId = chapter.getId();
+
+        chapterTitle.setText("Chapter " + chapter.getNumber());
+        adapter.setImages(new ArrayList<>()); // Clear old images
+
+        pageIndicator.setText("0 / 0");
+        pageSlider.setProgress(0);
+        rvReader.scrollToPosition(0);
+
+        // 🔥 NEW: Trigger the direct scrape
+        fetchImagesDirectly(currentChapterId);
+    }
+
+    // 🔥 NEW METHOD: The heart of the new fast flow
+    private void fetchImagesDirectly(String url) {
+        mangaSource.getImages(url, new Source.ImageCallback() {
+            @Override
+            public void onSuccess(List<String> images) {
+                // Must update UI on Main Thread
+                runOnUiThread(() -> {
+                    adapter.setImages(images);
+                    int savedPage = getSharedPreferences("reader_progress", MODE_PRIVATE).getInt(currentChapterId, 0);
+
+                    pageSlider.setMax(images.size() - 1);
+                    pageSlider.setProgress(savedPage);
+                    pageIndicator.setText((savedPage + 1) + " / " + images.size());
+
+                    // Wait for RecyclerView to draw, then scroll to saved page
+                    rvReader.post(() -> {
+                        layoutManager.scrollToPositionWithOffset(savedPage, 0);
+                    });
+                });
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+            public void onError(String error) {
+                runOnUiThread(() -> Toast.makeText(ReaderActivity.this, error, Toast.LENGTH_SHORT).show());
+            }
         });
-
-        webView.loadUrl(chapterUrl);
     }
 
-    private void hideUI() {
+    private void handleScrollTracking() {
+        int currentPage = layoutManager.findFirstVisibleItemPosition() + 1;
+        int totalPages = adapter.getItemCount();
 
-        topBar.animate()
-                .alpha(0f)
-                .translationY(-topBar.getHeight())
-                .setDuration(200)
-                .withEndAction(() -> topBar.setVisibility(View.GONE));
+        if (totalPages > 0) {
+            pageIndicator.setText(currentPage + " / " + totalPages);
+            pageSlider.setProgress(currentPage - 1);
 
-        bottomBar.animate()
-                .alpha(0f)
-                .translationY(bottomBar.getHeight())
-                .setDuration(200)
-                .withEndAction(() -> bottomBar.setVisibility(View.GONE));
+            int pageToSave = currentPage - 1;
+            if (pageToSave != lastSavedPage) {
+                lastSavedPage = pageToSave;
+                saveReadingProgress(pageToSave);
+            }
+        }
 
-        pageSlider.animate()
-                .alpha(0f)
-                .setDuration(200)
-                .withEndAction(() -> pageSlider.setVisibility(View.GONE));
+        int lastVisible = layoutManager.findLastVisibleItemPosition();
+        if (lastVisible == totalPages - 1 && totalPages > 0) {
+            View lastView = layoutManager.findViewByPosition(lastVisible);
+            if (lastView != null && lastView.getBottom() <= rvReader.getHeight()) {
+                onChapterFinished();
+            }
+        }
     }
 
-    private void showUI() {
+    private void onChapterFinished() {
+        if (chapterMarked || isFinishing() || mediaId == -1) return;
 
-        topBar.setVisibility(View.VISIBLE);
-        bottomBar.setVisibility(View.VISIBLE);
-        pageSlider.setVisibility(View.VISIBLE);
+        String token = getSharedPreferences("user", MODE_PRIVATE).getString("token", null);
+        if (token == null || chapterList == null || currentIndex >= chapterList.size()) return;
 
-        topBar.setAlpha(0f);
-        bottomBar.setAlpha(0f);
-        pageSlider.setAlpha(0f);
+        chapterMarked = true;
+        Chapter currentChapter = chapterList.get(currentIndex);
 
-        topBar.setTranslationY(-topBar.getHeight());
-        bottomBar.setTranslationY(bottomBar.getHeight());
+        int safeProgress;
+        try {
+            safeProgress = Integer.parseInt(currentChapter.getNumber());
+        } catch (NumberFormatException e) {
+            safeProgress = currentIndex + 1;
+        }
 
-        topBar.animate()
-                .alpha(1f)
-                .translationY(0)
-                .setDuration(200);
+        if (totalChapters > 0 && safeProgress >= totalChapters) {
+            safeProgress = totalChapters - 1;
+        }
 
-        bottomBar.animate()
-                .alpha(1f)
-                .translationY(0)
-                .setDuration(200);
+        AniListApi.saveToList(ReaderActivity.this, token, mediaId, safeProgress, "CURRENT", new AniListApi.ApiCallback() {
+            @Override public void onSuccess(JSONObject response) {}
+            @Override public void onError(String error) {}
+        });
+    }
 
-        pageSlider.animate()
-                .alpha(1f)
-                .setDuration(200);
+    private void saveReadingProgress(int page) {
+        if (currentChapterId == null) return;
+        getSharedPreferences("reader_progress", MODE_PRIVATE).edit().putInt(currentChapterId, page).apply();
+    }
+
+    private void toggleUI() {
+        if (isUiVisible) {
+            animateView(topBar, false, -topBar.getHeight());
+            animateView(bottomBar, false, bottomBar.getHeight());
+            animateView(pageSlider, false, 0);
+            hideSystemUI();
+        } else {
+            animateView(topBar, true, 0);
+            animateView(bottomBar, true, 0);
+            animateView(pageSlider, true, 0);
+        }
+        isUiVisible = !isUiVisible;
+    }
+
+    private void animateView(View view, boolean show, float translationY) {
+        if (show) {
+            view.setVisibility(View.VISIBLE);
+            view.animate().alpha(1f).translationY(translationY).setDuration(200).withEndAction(null);
+        } else {
+            view.animate().alpha(0f).translationY(translationY).setDuration(200)
+                    .withEndAction(() -> view.setVisibility(View.GONE));
+        }
     }
 
     private void hideSystemUI() {
@@ -246,63 +289,15 @@ public class ReaderActivity extends AppCompatActivity {
         hideSystemUI();
     }
 
-    private void loadChapter(Chapter chapter) {
-
-        String url = chapter.getId();
-        String number = chapter.getNumber();
-
-        chapterTitle.setText("Chapter " + number);
-
-        // 🔥 CLEAR OLD DATA
-        adapter.setImages(new ArrayList<>());
-        pageIndicator.setText("0 / 0");
-        pageSlider.setProgress(0);
-
-        // 🔥 LOAD NEW
-        webView.loadUrl(url);
+    @Override
+    public void onBackPressed() {
+        onChapterFinished();
+        super.onBackPressed();
     }
 
-
-    private void extractImages(String html) {
-
-        List<String> images = new ArrayList<>();
-
-        try {
-            org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(html);
-            org.jsoup.select.Elements imgTags = doc.select("img");
-
-            for (org.jsoup.nodes.Element img : imgTags) {
-
-                String url = img.attr("data-src");
-
-                if (url == null || url.isEmpty()) {
-                    url = img.attr("src");
-                }
-
-                if (url != null &&
-                        !url.isEmpty() &&
-                        (url.contains("cdn") || url.contains("uploads"))) {
-
-                    images.add(url);
-                }
-            }
-
-            if (images.isEmpty()) {
-                Toast.makeText(this, "No images found 😭", Toast.LENGTH_SHORT).show();
-            } else {
-                adapter.setImages(images);
-
-                // set slider range
-                pageSlider.setMax(images.size() - 1);
-                pageSlider.setProgress(0);
-
-                // initial page indicator
-                pageIndicator.setText("1 / " + images.size());
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Error parsing images", Toast.LENGTH_SHORT).show();
-        }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        onChapterFinished();
     }
 }
